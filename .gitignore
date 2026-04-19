@@ -21,3 +21,9 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Kilakona SMS API credentials (PHP)
+/php/config/sms-credentials.php
+
+# MySQL credentials (PHP)
+/php/config/db-credentials.php

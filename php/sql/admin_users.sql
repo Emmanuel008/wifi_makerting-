@@ -1,0 +1,2 @@
+-- Legacy: no longer used for login. Dashboard auth uses managed_users (see managed_users.sql).
+-- You may DROP TABLE admin_users; after migrating to managed_users + password_hash.
