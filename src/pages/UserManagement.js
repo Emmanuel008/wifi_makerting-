@@ -53,6 +53,7 @@ export default function UserManagement() {
   const [page, setPage] = React.useState(1);
   const [listLoading, setListLoading] = React.useState(true);
   const [name, setName] = React.useState('');
+  const [companyName, setCompanyName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [phone, setPhone] = React.useState('');
   const [role, setRole] = React.useState('business');
@@ -112,6 +113,7 @@ export default function UserManagement() {
     setShowForm(false);
     setEditingId(null);
     setName('');
+    setCompanyName('');
     setEmail('');
     setPhone('');
     setRole('business');
@@ -144,6 +146,7 @@ export default function UserManagement() {
   function focusAddUser() {
     setEditingId(null);
     setName('');
+    setCompanyName('');
     setEmail('');
     setPhone('');
     setRole('business');
@@ -153,6 +156,7 @@ export default function UserManagement() {
   function startEdit(user) {
     setEditingId(user.id);
     setName(user.name || '');
+    setCompanyName(user.companyName || '');
     setEmail(user.email || '');
     setPhone(user.phone || '');
     setRole(user.role === 'admin' ? 'admin' : 'business');
@@ -169,6 +173,17 @@ export default function UserManagement() {
         icon: 'warning',
         title: 'Name required',
         text: 'Enter the user’s full name.',
+      });
+      return;
+    }
+
+    const trimmedCompanyName = String(companyName || '').trim();
+    if (!trimmedCompanyName) {
+      await Swal.fire({
+        ...swalBase,
+        icon: 'warning',
+        title: 'Company required',
+        text: 'Enter the company name.',
       });
       return;
     }
@@ -219,6 +234,7 @@ export default function UserManagement() {
             action: 'update',
             id: editingId,
             name: trimmedName,
+            companyName: trimmedCompanyName,
             email: normalizedEmail,
             phone: normalized,
             role,
@@ -226,6 +242,7 @@ export default function UserManagement() {
         : {
             action: 'save',
             name: trimmedName,
+            companyName: trimmedCompanyName,
             email: normalizedEmail,
             phone: normalized,
             role,
@@ -395,6 +412,18 @@ export default function UserManagement() {
             </div>
 
             <div className="field">
+              <div className="fieldLabel">Company name</div>
+              <input
+                className="fieldInput"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                placeholder="ACME Ltd"
+                autoComplete="organization"
+                disabled={saving}
+              />
+            </div>
+
+            <div className="field">
               <div className="fieldLabel">Phone number</div>
               <input
                 className="fieldInput"
@@ -460,8 +489,9 @@ export default function UserManagement() {
         {modal}
 
         <div className="table" aria-label="Users">
-          <div className="row head row5">
+          <div className="row head row6">
             <div>Name</div>
+            <div>Company</div>
             <div>Email</div>
             <div>Phone number</div>
             <div>Role</div>
@@ -480,8 +510,9 @@ export default function UserManagement() {
             </div>
           ) : (
             users.map((u) => (
-              <div className="row row5" key={u.id}>
+              <div className="row row6" key={u.id}>
                 <div>{u.name || '—'}</div>
+                <div>{u.companyName || '—'}</div>
                 <div className="muted">{u.email || '—'}</div>
                 <div className="mono">{u.phone || '—'}</div>
                 <div>

@@ -127,7 +127,7 @@ if ($action === 'list') {
     $offset = ($page - 1) * $perPage;
 
     $stmt = $pdo->prepare(
-        'SELECT id, name, email, phone, role,
+        'SELECT id, name, company_name, email, phone, role,
                 UNIX_TIMESTAMP(created_at) AS created_at,
                 UNIX_TIMESTAMP(updated_at) AS updated_at
          FROM managed_users
@@ -143,6 +143,7 @@ if ($action === 'list') {
         $users[] = [
             'id' => (int) $row['id'],
             'name' => (string) $row['name'],
+            'companyName' => (string) $row['company_name'],
             'email' => (string) $row['email'],
             'phone' => (string) $row['phone'],
             'role' => (string) $row['role'],
@@ -180,6 +181,7 @@ if ($action === 'delete') {
 }
 
 $name = isset($body['name']) ? trim((string) $body['name']) : '';
+$companyName = isset($body['companyName']) ? trim((string) $body['companyName']) : '';
 $email = normalize_email(isset($body['email']) ? (string) $body['email'] : '');
 $phone = normalize_phone(isset($body['phone']) ? (string) $body['phone'] : '');
 $role = valid_role($body['role'] ?? null);
@@ -187,6 +189,11 @@ $role = valid_role($body['role'] ?? null);
 if ($name === '') {
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => 'name is required']);
+    exit;
+}
+if ($companyName === '') {
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'error' => 'companyName is required']);
     exit;
 }
 if ($email === '' || !str_contains($email, '@')) {
@@ -209,10 +216,12 @@ if ($action === 'save') {
     $hash = default_new_user_password_hash();
     try {
         $stmt = $pdo->prepare(
-            'INSERT INTO managed_users (name, email, phone, role, password_hash) VALUES (:name, :email, :phone, :role, :password_hash)'
+            'INSERT INTO managed_users (name, company_name, email, phone, role, password_hash)
+             VALUES (:name, :company_name, :email, :phone, :role, :password_hash)'
         );
         $stmt->execute([
             'name' => $name,
+            'company_name' => $companyName,
             'email' => $email,
             'phone' => $phone,
             'role' => $role,
@@ -232,6 +241,7 @@ if ($action === 'save') {
         'user' => [
             'id' => $newId,
             'name' => $name,
+            'companyName' => $companyName,
             'email' => $email,
             'phone' => $phone,
             'role' => $role,
@@ -256,10 +266,13 @@ if ($action === 'update') {
     }
     try {
         $stmt = $pdo->prepare(
-            'UPDATE managed_users SET name = :name, email = :email, phone = :phone, role = :role WHERE id = :id'
+            'UPDATE managed_users
+             SET name = :name, company_name = :company_name, email = :email, phone = :phone, role = :role
+             WHERE id = :id'
         );
         $stmt->execute([
             'name' => $name,
+            'company_name' => $companyName,
             'email' => $email,
             'phone' => $phone,
             'role' => $role,
@@ -278,6 +291,7 @@ if ($action === 'update') {
         'user' => [
             'id' => $id,
             'name' => $name,
+            'companyName' => $companyName,
             'email' => $email,
             'phone' => $phone,
             'role' => $role,
