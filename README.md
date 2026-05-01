@@ -1,3 +1,38 @@
+# WiFi Marketing
+
+## Frontend (React)
+
+Create a `.env` file from `.env.example` (or set the same vars in your shell) and run:
+
+- `npm start`
+
+The frontend expects API endpoints at `http://localhost:8080/api/*.php`.
+
+## Backend (Laravel)
+
+The Laravel API lives in `laravel-api/` and mirrors legacy endpoint paths:
+
+- `POST /api/login.php`
+- `POST /api/managed-users.php`
+- `POST /api/send-sms.php`
+- `POST /api/captive-register.php`
+- `POST /api/wifi-connected-list.php`
+- `POST /api/wifi-session.php`
+
+Set up backend:
+
+1. `cd laravel-api`
+2. `cp .env.example .env`
+3. Update DB + secrets in `.env` (`CAPTIVE_WIFI_PASSWORD`, `SMS_API_KEY`, `SMS_API_SECRET`)
+4. `php artisan key:generate`
+5. `php artisan migrate --seed`
+6. `php artisan serve --host=127.0.0.1 --port=8080`
+
+Default seeded admin user:
+
+- email: `admin@admin.com`
+- password: `admin`
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
