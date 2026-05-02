@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Database\QueryException;
 use Throwable;
 
 class ManagedUsersController extends BaseApiController
