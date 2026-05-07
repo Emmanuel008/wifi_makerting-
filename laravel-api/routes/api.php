@@ -4,6 +4,8 @@ use App\Http\Controllers\Api\CaptiveRegisterController;
 use App\Http\Controllers\Api\LoginController;
 use App\Http\Controllers\Api\ManagedUsersController;
 use App\Http\Controllers\Api\SendSmsController;
+use App\Http\Controllers\Api\StoreWifiPasswordController;
+use App\Http\Controllers\Api\WifiClientAuthController;
 use App\Http\Controllers\Api\WifiConnectedListController;
 use App\Http\Controllers\Api\WifiSessionController;
 use Illuminate\Http\Request;
@@ -13,6 +15,8 @@ Route::post('/login.php', LoginController::class);
 Route::post('/managed-users.php', ManagedUsersController::class);
 Route::post('/send-sms.php', SendSmsController::class);
 Route::post('/captive-register.php', CaptiveRegisterController::class);
+Route::post('/store-wifi-password.php', StoreWifiPasswordController::class);
+Route::post('/wifi-client-auth.php', WifiClientAuthController::class);
 Route::post('/wifi-connected-list.php', WifiConnectedListController::class);
 Route::post('/wifi-session.php', WifiSessionController::class);
 
