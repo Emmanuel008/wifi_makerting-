@@ -55,7 +55,7 @@ class SendSmsController extends BaseApiController
         if ($apiKey === '' || $apiSecret === '') {
             return response()->json([
                 'sucess' => false,
-                'error' => 'Set SMS_API_KEY and SMS_API_SECRET in laravel-api/.env (or provide php/config/sms-credentials.php).',
+                'error' => 'Set SMS_API_KEY and SMS_API_SECRET in laravel-api/.env',
             ], 500);
         }
 
