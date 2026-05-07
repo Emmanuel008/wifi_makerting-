@@ -6,6 +6,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Schema;
 use Throwable;
 
 class SendSmsController extends BaseApiController
@@ -14,7 +15,13 @@ class SendSmsController extends BaseApiController
     {
         $senderId = trim((string) ($request->senderId ?? ''));
         $message = trim((string) ($request->message ?? ''));
-        $deliveryReportUrl = trim((string) ($request->deliveryReportUrl ?? ''));
+        $deliveryReportUrl = trim((string) env('SMS_DELIVERY_REPORT_URL', ''));
+        if ($deliveryReportUrl === '') {
+            $appUrl = rtrim(trim((string) env('APP_URL', '')), '/');
+            if ($appUrl !== '') {
+                $deliveryReportUrl = $appUrl . '/api/delivery-callback';
+            }
+        }
         $contacts = trim((string) ($request->contacts ?? ''));
 
         if ($senderId === '' || $message === '') {
@@ -62,14 +69,18 @@ class SendSmsController extends BaseApiController
             $payload['deliveryReportUrl'] = $deliveryReportUrl;
         }
 
-        $outboxId = $this->createOutboxEntry(
+        $outboxIds = $this->createOutboxEntries(
             $senderId,
             $message,
-            $payload['contacts'],
-            count($finalContacts),
+            $finalContacts,
             $deliveryReportUrl !== '' ? $deliveryReportUrl : null
         );
-        $this->createOutboxRecipientEntries($outboxId, $finalContacts, $message);
+        if ($outboxIds === []) {
+            return response()->json([
+                'sucess' => false,
+                'error' => 'Could not save SMS history to outbox. Run migrations first.',
+            ], 500);
+        }
 
         try {
             $response = Http::withHeaders([
@@ -77,11 +88,7 @@ class SendSmsController extends BaseApiController
                 'api_secret' => $apiSecret,
             ])->timeout(60)->post('https://messaging.kilakona.co.tz/api/v1/vendor/message/send', $payload);
         } catch (Throwable $e) {
-            $this->updateOutboxEntry($outboxId, [
-                'status' => 'failed',
-                'error_detail' => $e->getMessage(),
-            ]);
-            $this->updateOutboxRecipients($outboxId, [
+            $this->updateOutboxEntries($outboxIds, [
                 'status' => 'failed',
                 'error_detail' => $e->getMessage(),
             ]);
@@ -95,13 +102,7 @@ class SendSmsController extends BaseApiController
         $status = $response->status();
         $decoded = $response->json();
         if (!is_array($decoded)) {
-            $this->updateOutboxEntry($outboxId, [
-                'status' => 'failed',
-                'http_status' => $status,
-                'provider_response' => $response->body(),
-                'error_detail' => 'Non-JSON response from SMS provider',
-            ]);
-            $this->updateOutboxRecipients($outboxId, [
+            $this->updateOutboxEntries($outboxIds, [
                 'status' => 'failed',
                 'http_status' => $status,
                 'provider_response' => $response->body(),
@@ -114,13 +115,7 @@ class SendSmsController extends BaseApiController
             ], $status >= 400 ? $status : 502);
         }
 
-        $this->updateOutboxEntry($outboxId, [
-            'status' => ($status >= 200 && $status < 300) ? 'sent' : 'failed',
-            'http_status' => $status,
-            'provider_response' => json_encode($decoded, JSON_UNESCAPED_SLASHES),
-            'error_detail' => null,
-        ]);
-        $this->updateOutboxRecipients($outboxId, [
+        $this->updateOutboxEntries($outboxIds, [
             'status' => ($status >= 200 && $status < 300) ? 'sent' : 'failed',
             'http_status' => $status,
             'provider_response' => json_encode($decoded, JSON_UNESCAPED_SLASHES),
@@ -130,96 +125,73 @@ class SendSmsController extends BaseApiController
         return response()->json([
             'sucess' => $status >= 200 && $status < 300,
             'contactsCount' => count($finalContacts),
-            'outboxId' => $outboxId,
-            'outboxRows' => count($finalContacts),
+            'outboxIds' => $outboxIds,
+            'outboxRows' => count($outboxIds),
             'provider' => $decoded,
         ], ($status >= 100 && $status < 600) ? $status : 200, [], JSON_UNESCAPED_SLASHES);
     }
 
-    private function createOutboxEntry(
+    /**
+     * @param list<string> $phones
+     * @return list<int>
+     */
+    private function createOutboxEntries(
         string $senderId,
         string $message,
-        string $contactsCsv,
-        int $contactsCount,
+        array $phones,
         ?string $deliveryReportUrl
-    ): ?int {
-        try {
-            return (int) DB::table('sms_outbox')->insertGetId([
-                'sender_id' => $senderId,
-                'message' => $message,
-                'contacts_csv' => $contactsCsv,
-                'contacts_count' => $contactsCount,
-                'delivery_report_url' => $deliveryReportUrl,
-                'status' => 'pending',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        } catch (Throwable) {
-            return null;
-        }
-    }
+    ): array {
+        $characterCount = mb_strlen($message);
+        $smsParts = max(1, (int) ceil($characterCount / 160));
+        $ids = [];
 
-    private function updateOutboxEntry(?int $id, array $data): void
-    {
-        if ($id === null || $id < 1) {
-            return;
+        foreach ($phones as $phone) {
+            try {
+                $row = [
+                    'sender_id' => $senderId,
+                    'message' => $message,
+                    'contacts_csv' => $phone,
+                    'contacts_count' => 1,
+                    'delivery_report_url' => $deliveryReportUrl,
+                    'status' => 'pending',
+                    'http_status' => null,
+                    'provider_response' => null,
+                    'error_detail' => null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+
+                if (Schema::hasColumn('sms_outbox', 'character_count')) {
+                    $row['character_count'] = $characterCount;
+                }
+                if (Schema::hasColumn('sms_outbox', 'sms_parts')) {
+                    $row['sms_parts'] = $smsParts;
+                }
+
+                $id = (int) DB::table('sms_outbox')->insertGetId($row);
+                $ids[] = $id;
+            } catch (Throwable) {
+                // Keep going for other recipients.
+            }
         }
 
-        try {
-            $data['updated_at'] = now();
-            DB::table('sms_outbox')->where('id', $id)->update($data);
-        } catch (Throwable) {
-            // Do not fail SMS API when history logging fails.
-        }
+        return $ids;
     }
 
     /**
-     * @param list<string> $phones
+     * @param list<int> $ids
      */
-    private function createOutboxRecipientEntries(?int $outboxId, array $phones, string $message): void
+    private function updateOutboxEntries(array $ids, array $data): void
     {
-        if ($outboxId === null || $outboxId < 1 || $phones === []) {
-            return;
-        }
-
-        $characterCount = mb_strlen($message);
-        $smsParts = max(1, (int) ceil($characterCount / 160));
-        $now = now();
-        $rows = [];
-
-        foreach ($phones as $phone) {
-            $rows[] = [
-                'outbox_id' => $outboxId,
-                'phone' => $phone,
-                'message' => $message,
-                'character_count' => $characterCount,
-                'sms_parts' => $smsParts,
-                'status' => 'pending',
-                'created_at' => $now,
-                'updated_at' => $now,
-            ];
-        }
-
-        try {
-            DB::table('sms_outbox_recipients')->insert($rows);
-        } catch (Throwable) {
-            // Do not fail SMS API when recipient logging fails.
-        }
-    }
-
-    private function updateOutboxRecipients(?int $outboxId, array $data): void
-    {
-        if ($outboxId === null || $outboxId < 1) {
+        if ($ids === []) {
             return;
         }
 
         try {
             $data['updated_at'] = now();
-            DB::table('sms_outbox_recipients')
-                ->where('outbox_id', $outboxId)
-                ->update($data);
+            DB::table('sms_outbox')->whereIn('id', $ids)->update($data);
         } catch (Throwable) {
-            // Do not fail SMS API when recipient logging fails.
+            // Do not fail SMS API when history logging fails.
         }
     }
 

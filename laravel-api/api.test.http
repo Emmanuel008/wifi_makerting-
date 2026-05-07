@@ -34,8 +34,7 @@ Content-Type: application/json
 {
     "senderId": "NILETEE",
     "message": "Hello from API test",
-    "contacts": "0656121885",
-    "deliveryReportUrl": "https://your-server.com/delivery-callback"
+    "contacts": "0656121885,0768102956"
 }
 
 ###
