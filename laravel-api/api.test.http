@@ -37,6 +37,16 @@ Content-Type: application/json
     "contacts": "0656121885,0768102956"
 }
 
+### test live
+POST https://wifi.jitihada.co.tz/api/send-sms
+Content-Type: application/json
+
+{
+  "senderId": "NILETEE",
+  "message": "Hello from API test",
+  "contacts": "0625313162"
+}
+
 ###
 # Delivery callback test (JSON)
 POST http://127.0.0.1:8000/api/delivery-callback
