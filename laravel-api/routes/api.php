@@ -11,14 +11,14 @@ use App\Http\Controllers\Api\WifiSessionController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-Route::post('/login.php', LoginController::class);
-Route::post('/managed-users.php', ManagedUsersController::class);
-Route::post('/send-sms.php', SendSmsController::class);
-Route::post('/captive-register.php', CaptiveRegisterController::class);
-Route::post('/store-wifi-password.php', StoreWifiPasswordController::class);
-Route::post('/wifi-client-auth.php', WifiClientAuthController::class);
-Route::post('/wifi-connected-list.php', WifiConnectedListController::class);
-Route::post('/wifi-session.php', WifiSessionController::class);
+Route::post('/login', LoginController::class);
+Route::post('/managed-users', ManagedUsersController::class);
+Route::post('/send-sms', SendSmsController::class);
+Route::post('/captive-register', CaptiveRegisterController::class);
+Route::post('/store-wifi-password', StoreWifiPasswordController::class);
+Route::post('/wifi-client-auth', WifiClientAuthController::class);
+Route::post('/wifi-connected-list', WifiConnectedListController::class);
+Route::post('/wifi-session', WifiSessionController::class);
 
 Route::options('/{any}', function (Request $request) {
     $origin = (string) $request->header('Origin', '*');
