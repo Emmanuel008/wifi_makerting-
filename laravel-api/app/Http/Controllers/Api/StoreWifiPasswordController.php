@@ -8,47 +8,22 @@ use Throwable;
 
 class StoreWifiPasswordController extends BaseApiController
 {
-    public function __invoke(Request $request)
+    public function storePassword(Request $request)
     {
-        $body = $this->decodeJsonBody($request->getContent());
-        if ($body === null) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'Invalid JSON body'], 400),
-                'CAPTIVE_CORS_ORIGIN'
-            );
-        }
-
-        $wifiPassword = isset($body['wifiPassword']) ? trim((string) $body['wifiPassword']) : '';
+        $wifiPassword = trim((string) ($request->wifiPassword ?? ''));
         if ($wifiPassword === '') {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'wifiPassword is required'], 400),
-                'CAPTIVE_CORS_ORIGIN'
-            );
-        }
-
-        $passwordHash = password_hash($wifiPassword, PASSWORD_DEFAULT);
-        if ($passwordHash === false) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'Could not hash WiFi password'], 500),
-                'CAPTIVE_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'wifiPassword is required'], 400);
         }
 
         try {
             DB::table('wifi_passwords')->updateOrInsert(
                 ['id' => 1],
-                ['password_hash' => $passwordHash, 'updated_at' => now()]
+                ['password_hash' => $wifiPassword, 'updated_at' => now()]
             );
         } catch (Throwable) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'Could not save password. Run migrations first.'], 500),
-                'CAPTIVE_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'Could not save password. Run migrations first.'], 500);
         }
 
-        return $this->withCors(
-            response()->json(['ok' => true], 200, [], JSON_UNESCAPED_SLASHES),
-            'CAPTIVE_CORS_ORIGIN'
-        );
+        return response()->json(['sucess' => true], 200, [], JSON_UNESCAPED_SLASHES);
     }
 }

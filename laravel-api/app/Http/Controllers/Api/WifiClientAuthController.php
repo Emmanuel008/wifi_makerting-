@@ -8,30 +8,16 @@ use Throwable;
 
 class WifiClientAuthController extends BaseApiController
 {
-    public function __invoke(Request $request)
+    public function authenticateClient(Request $request)
     {
-        $body = $this->decodeJsonBody($request->getContent());
-        if ($body === null) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'Invalid JSON body'], 400),
-                'CAPTIVE_CORS_ORIGIN'
-            );
-        }
-
-        $phone = $this->normalizePhone((string) ($body['phone'] ?? ''));
+        $phone = $this->normalizePhone((string) ($request->phone ?? ''));
         if ($phone === null) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'Enter a valid mobile number.'], 400),
-                'CAPTIVE_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'Enter a valid mobile number.'], 400);
         }
 
-        $wifiPassword = isset($body['wifiPassword']) ? (string) $body['wifiPassword'] : '';
+        $wifiPassword = (string) ($request->wifiPassword ?? '');
         if ($wifiPassword === '') {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'wifiPassword is required'], 400),
-                'CAPTIVE_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'wifiPassword is required'], 400);
         }
 
         try {
@@ -40,17 +26,11 @@ class WifiClientAuthController extends BaseApiController
                 ->where('id', 1)
                 ->first();
         } catch (Throwable) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'Could not read WiFi password. Run migrations first.'], 500),
-                'CAPTIVE_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'Could not read WiFi password. Run migrations first.'], 500);
         }
 
-        if ($passwordRow === null || !password_verify($wifiPassword, (string) $passwordRow->password_hash)) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'Incorrect WiFi password.'], 401),
-                'CAPTIVE_CORS_ORIGIN'
-            );
+        if ($passwordRow === null || !hash_equals((string) $passwordRow->password_hash, $wifiPassword)) {
+            return response()->json(['sucess' => false, 'error' => 'Incorrect WiFi password.'], 401);
         }
 
         try {
@@ -59,16 +39,10 @@ class WifiClientAuthController extends BaseApiController
                 ['updated_at' => now()]
             );
         } catch (Throwable) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'Could not save WiFi client.'], 500),
-                'CAPTIVE_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'Could not save WiFi client.'], 500);
         }
 
-        return $this->withCors(
-            response()->json(['ok' => true, 'phone' => $phone], 200, [], JSON_UNESCAPED_SLASHES),
-            'CAPTIVE_CORS_ORIGIN'
-        );
+        return response()->json(['sucess' => true, 'phone' => $phone], 200, [], JSON_UNESCAPED_SLASHES);
     }
 
     private function normalizePhone(string $raw): ?string
@@ -79,15 +53,15 @@ class WifiClientAuthController extends BaseApiController
         }
 
         if (strlen($digits) === 9 && preg_match('/^[67]/', $digits) === 1) {
-            return '+255' . $digits;
+            return '255' . $digits;
         }
 
         if (strlen($digits) === 10 && str_starts_with($digits, '0')) {
-            return '+255' . substr($digits, 1);
+            return '255' . substr($digits, 1);
         }
 
-        if (strlen($digits) >= 11 && strlen($digits) <= 15) {
-            return '+' . $digits;
+        if (str_starts_with($digits, '255') && strlen($digits) === 12) {
+            return $digits;
         }
 
         return null;

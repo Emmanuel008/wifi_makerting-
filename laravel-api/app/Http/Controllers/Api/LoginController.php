@@ -8,23 +8,17 @@ use Throwable;
 
 class LoginController extends BaseApiController
 {
-    public function __invoke(Request $request)
+    public function login(Request $request)
     {
         $body = $this->decodeJsonBody($request->getContent());
         if ($body === null) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'Invalid JSON body'], 400),
-                'LOGIN_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'Invalid JSON body'], 400);
         }
 
         $email = isset($body['email']) ? strtolower(trim((string) $body['email'])) : '';
         $plainPassword = isset($body['password']) ? (string) $body['password'] : '';
         if ($email === '' || !str_contains($email, '@') || $plainPassword === '') {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'email and password are required'], 400),
-                'LOGIN_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'email and password are required'], 400);
         }
 
         try {
@@ -33,17 +27,11 @@ class LoginController extends BaseApiController
                 ->where('email', $email)
                 ->first();
         } catch (Throwable) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'Database connection failed'], 500),
-                'LOGIN_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'Database connection failed'], 500);
         }
 
         if ($row === null || !password_verify($plainPassword, (string) $row->password_hash)) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'Invalid email or password'], 401),
-                'LOGIN_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'Invalid email or password'], 401);
         }
 
         $role = (string) ($row->role ?? 'business');
@@ -51,17 +39,14 @@ class LoginController extends BaseApiController
             $role = 'business';
         }
 
-        return $this->withCors(
-            response()->json([
-                'ok' => true,
-                'user' => [
-                    'id' => (int) $row->id,
-                    'email' => (string) $row->email,
-                    'name' => (string) ($row->name ?? ''),
-                    'role' => $role,
-                ],
-            ], 200, [], JSON_UNESCAPED_SLASHES),
-            'LOGIN_CORS_ORIGIN'
-        );
+        return response()->json([
+                'sucess' => true,
+            'user' => [
+                'id' => (int) $row->id,
+                'email' => (string) $row->email,
+                'name' => (string) ($row->name ?? ''),
+                'role' => $role,
+            ],
+        ], 200, [], JSON_UNESCAPED_SLASHES);
     }
 }

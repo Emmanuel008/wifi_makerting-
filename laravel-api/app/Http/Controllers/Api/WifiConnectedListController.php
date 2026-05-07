@@ -8,15 +8,11 @@ use Throwable;
 
 class WifiConnectedListController extends BaseApiController
 {
-    public function __invoke(Request $request)
+    public function list(Request $request)
     {
         $body = $this->decodeJsonBody($request->getContent());
         if ($body === null) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'Invalid JSON body'], 400),
-                'WIFI_CONNECTED_CORS_ORIGIN',
-                'LOGIN_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'Invalid JSON body'], 400);
         }
 
         $page = isset($body['page']) ? (int) $body['page'] : 1;
@@ -34,11 +30,7 @@ class WifiConnectedListController extends BaseApiController
                 ->limit($pageSize)
                 ->get();
         } catch (Throwable) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'Query failed. Did you run php/sql/wifi_sessions.sql?'], 500),
-                'WIFI_CONNECTED_CORS_ORIGIN',
-                'LOGIN_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'Query failed. Did you run php/sql/wifi_sessions.sql?'], 500);
         }
 
         $output = $rows->map(static fn ($row) => [
@@ -50,16 +42,12 @@ class WifiConnectedListController extends BaseApiController
             'isLive' => ((int) ($row->is_live ?? 0)) === 1,
         ])->all();
 
-        return $this->withCors(
-            response()->json([
-                'ok' => true,
-                'rows' => $output,
-                'total' => $total,
-                'page' => $page,
-                'pageSize' => $pageSize,
-            ], 200, [], JSON_UNESCAPED_SLASHES),
-            'WIFI_CONNECTED_CORS_ORIGIN',
-            'LOGIN_CORS_ORIGIN'
-        );
+        return response()->json([
+            'sucess' => true,
+            'rows' => $output,
+            'total' => $total,
+            'page' => $page,
+            'pageSize' => $pageSize,
+        ], 200, [], JSON_UNESCAPED_SLASHES);
     }
 }

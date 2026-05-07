@@ -8,14 +8,11 @@ use Throwable;
 
 class SendSmsController extends BaseApiController
 {
-    public function __invoke(Request $request)
+    public function send(Request $request)
     {
         $body = $this->decodeJsonBody($request->getContent());
         if ($body === null) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'Invalid JSON body'], 400),
-                'SMS_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'Invalid JSON body'], 400);
         }
 
         $senderId = trim((string) ($body['senderId'] ?? ''));
@@ -24,10 +21,7 @@ class SendSmsController extends BaseApiController
         $deliveryReportUrl = trim((string) ($body['deliveryReportUrl'] ?? ''));
 
         if ($senderId === '' || $message === '' || $contacts === '') {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'senderId, message, and contacts are required'], 400),
-                'SMS_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'senderId, message, and contacts are required'], 400);
         }
 
         $apiKey = trim((string) env('SMS_API_KEY', ''));
@@ -44,13 +38,10 @@ class SendSmsController extends BaseApiController
         }
 
         if ($apiKey === '' || $apiSecret === '') {
-            return $this->withCors(
-                response()->json([
-                    'ok' => false,
-                    'error' => 'Set SMS_API_KEY and SMS_API_SECRET in laravel-api/.env (or provide php/config/sms-credentials.php).',
-                ], 500),
-                'SMS_CORS_ORIGIN'
-            );
+            return response()->json([
+                'sucess' => false,
+                'error' => 'Set SMS_API_KEY and SMS_API_SECRET in laravel-api/.env (or provide php/config/sms-credentials.php).',
+            ], 500);
         }
 
         $payload = [
@@ -69,35 +60,26 @@ class SendSmsController extends BaseApiController
                 'api_secret' => $apiSecret,
             ])->timeout(60)->post('https://messaging.kilakona.co.tz/api/v1/vendor/message/send', $payload);
         } catch (Throwable $e) {
-            return $this->withCors(
-                response()->json([
-                    'ok' => false,
-                    'error' => 'Upstream request failed',
-                    'detail' => $e->getMessage(),
-                ], 502),
-                'SMS_CORS_ORIGIN'
-            );
+            return response()->json([
+                'sucess' => false,
+                'error' => 'Upstream request failed',
+                'detail' => $e->getMessage(),
+            ], 502);
         }
 
         $status = $response->status();
         $decoded = $response->json();
         if (!is_array($decoded)) {
-            return $this->withCors(
-                response()->json([
-                    'ok' => false,
-                    'error' => 'Non-JSON response from SMS provider',
-                    'raw' => $response->body(),
-                ], $status >= 400 ? $status : 502),
-                'SMS_CORS_ORIGIN'
-            );
+            return response()->json([
+                'sucess' => false,
+                'error' => 'Non-JSON response from SMS provider',
+                'raw' => $response->body(),
+            ], $status >= 400 ? $status : 502);
         }
 
-        return $this->withCors(
-            response()->json([
-                'ok' => $status >= 200 && $status < 300,
-                'provider' => $decoded,
-            ], ($status >= 100 && $status < 600) ? $status : 200, [], JSON_UNESCAPED_SLASHES),
-            'SMS_CORS_ORIGIN'
-        );
+        return response()->json([
+            'sucess' => $status >= 200 && $status < 300,
+            'provider' => $decoded,
+        ], ($status >= 100 && $status < 600) ? $status : 200, [], JSON_UNESCAPED_SLASHES);
     }
 }

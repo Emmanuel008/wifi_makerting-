@@ -13,45 +13,30 @@ class CaptiveRegisterController extends BaseApiController
     {
     }
 
-    public function __invoke(Request $request)
+    public function register(Request $request)
     {
         $body = $this->decodeJsonBody($request->getContent());
         if ($body === null) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'Invalid JSON body'], 400),
-                'CAPTIVE_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'Invalid JSON body'], 400);
         }
 
         $phone = $this->normalizePhone((string) ($body['phone'] ?? ''));
         if ($phone === null) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'Enter a valid mobile number.'], 400),
-                'CAPTIVE_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'Enter a valid mobile number.'], 400);
         }
 
         $wifiPassword = (string) ($body['wifiPassword'] ?? '');
         if ($wifiPassword === '') {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'WiFi password is required.'], 400),
-                'CAPTIVE_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'WiFi password is required.'], 400);
         }
 
         $expected = trim((string) env('CAPTIVE_WIFI_PASSWORD', ''));
         if ($expected === '') {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'Captive WiFi password not configured. Set CAPTIVE_WIFI_PASSWORD.'], 500),
-                'CAPTIVE_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'Captive WiFi password not configured. Set CAPTIVE_WIFI_PASSWORD.'], 500);
         }
 
         if (!hash_equals($expected, $wifiPassword)) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'Incorrect WiFi password.'], 401),
-                'CAPTIVE_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'Incorrect WiFi password.'], 401);
         }
 
         $mac = $this->sanitizeMac(isset($body['mac']) ? (string) $body['mac'] : null);
@@ -84,19 +69,13 @@ class CaptiveRegisterController extends BaseApiController
                 ]);
             });
         } catch (Throwable) {
-            return $this->withCors(
-                response()->json([
-                    'ok' => false,
-                    'error' => 'Could not save registration. Run php/sql/wifi_captive.sql and php/sql/wifi_sessions.sql?',
-                ], 500),
-                'CAPTIVE_CORS_ORIGIN'
-            );
+            return response()->json([
+                'sucess' => false,
+                'error' => 'Could not save registration. Run php/sql/wifi_captive.sql and php/sql/wifi_sessions.sql?',
+            ], 500);
         }
 
-        return $this->withCors(
-            response()->json(['ok' => true, 'destination' => $dst], 200, [], JSON_UNESCAPED_SLASHES),
-            'CAPTIVE_CORS_ORIGIN'
-        );
+        return response()->json(['sucess' => true, 'destination' => $dst], 200, [], JSON_UNESCAPED_SLASHES);
     }
 
     private function normalizePhone(string $raw): ?string

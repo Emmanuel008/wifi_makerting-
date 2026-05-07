@@ -13,24 +13,16 @@ class WifiSessionController extends BaseApiController
     {
     }
 
-    public function __invoke(Request $request)
+    public function handleSession(Request $request)
     {
         $body = $this->decodeJsonBody($request->getContent());
         if ($body === null) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'Invalid JSON body'], 400),
-                'WIFI_SESSION_CORS_ORIGIN',
-                'CAPTIVE_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'Invalid JSON body'], 400);
         }
 
         $action = strtolower(trim((string) ($body['action'] ?? '')));
         if ($action !== 'ping' && $action !== 'disconnect') {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'action must be ping or disconnect'], 400),
-                'WIFI_SESSION_CORS_ORIGIN',
-                'CAPTIVE_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'action must be ping or disconnect'], 400);
         }
 
         $macRaw = (string) ($body['mac'] ?? '');
@@ -47,28 +39,16 @@ class WifiSessionController extends BaseApiController
 
         if ($action === 'disconnect') {
             if (($mac === null || $mac === '') && ($phone === null || $phone === '')) {
-                return $this->withCors(
-                    response()->json(['ok' => false, 'error' => 'mac or phone required for disconnect'], 400),
-                    'WIFI_SESSION_CORS_ORIGIN',
-                    'CAPTIVE_CORS_ORIGIN'
-                );
+                return response()->json(['sucess' => false, 'error' => 'mac or phone required for disconnect'], 400);
             }
 
             try {
                 $closed = $this->wifiSessions->disconnect($now, $mac, $phone);
             } catch (Throwable) {
-                return $this->withCors(
-                    response()->json(['ok' => false, 'error' => 'Could not update session. Run php/sql/wifi_sessions.sql?'], 500),
-                    'WIFI_SESSION_CORS_ORIGIN',
-                    'CAPTIVE_CORS_ORIGIN'
-                );
+                return response()->json(['sucess' => false, 'error' => 'Could not update session. Run php/sql/wifi_sessions.sql?'], 500);
             }
 
-            return $this->withCors(
-                response()->json(['ok' => true, 'closed' => $closed], 200, [], JSON_UNESCAPED_SLASHES),
-                'WIFI_SESSION_CORS_ORIGIN',
-                'CAPTIVE_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => true, 'closed' => $closed], 200, [], JSON_UNESCAPED_SLASHES);
         }
 
         $ssid = $this->wifiSessions->sanitizeSsid(isset($body['ssid']) ? (string) $body['ssid'] : null);
@@ -86,23 +66,11 @@ class WifiSessionController extends BaseApiController
                 'client_ip' => $clientIp !== '' ? $clientIp : null,
             ]);
         } catch (InvalidArgumentException $e) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => $e->getMessage()], 400),
-                'WIFI_SESSION_CORS_ORIGIN',
-                'CAPTIVE_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => $e->getMessage()], 400);
         } catch (Throwable) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'Could not save session. Run php/sql/wifi_sessions.sql?'], 500),
-                'WIFI_SESSION_CORS_ORIGIN',
-                'CAPTIVE_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'Could not save session. Run php/sql/wifi_sessions.sql?'], 500);
         }
 
-        return $this->withCors(
-            response()->json(['ok' => true], 200, [], JSON_UNESCAPED_SLASHES),
-            'WIFI_SESSION_CORS_ORIGIN',
-            'CAPTIVE_CORS_ORIGIN'
-        );
+        return response()->json(['sucess' => true], 200, [], JSON_UNESCAPED_SLASHES);
     }
 }

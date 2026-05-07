@@ -10,24 +10,16 @@ use Throwable;
 
 class ManagedUsersController extends BaseApiController
 {
-    public function __invoke(Request $request)
+    public function handle(Request $request)
     {
         $body = $this->decodeJsonBody($request->getContent());
         if ($body === null) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'Invalid JSON body'], 400),
-                'MANAGED_USERS_CORS_ORIGIN',
-                'LOGIN_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'Invalid JSON body'], 400);
         }
 
         $action = isset($body['action']) ? strtolower(trim((string) $body['action'])) : '';
         if (!in_array($action, ['list', 'save', 'update', 'delete'], true)) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'action is required: list, save, update, or delete'], 400),
-                'MANAGED_USERS_CORS_ORIGIN',
-                'LOGIN_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'action is required: list, save, update, or delete'], 400);
         }
 
         if ($action === 'list') {
@@ -63,11 +55,7 @@ class ManagedUsersController extends BaseApiController
                 ->limit($perPage)
                 ->get();
         } catch (Throwable) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'Database connection failed'], 500),
-                'MANAGED_USERS_CORS_ORIGIN',
-                'LOGIN_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'Database connection failed'], 500);
         }
 
         $users = $rows->map(static fn ($row) => [
@@ -81,54 +69,34 @@ class ManagedUsersController extends BaseApiController
             'updatedAt' => (int) $row->updated_at * 1000,
         ])->all();
 
-        return $this->withCors(
-            response()->json([
-                'ok' => true,
-                'users' => $users,
-                'total' => $total,
-                'page' => $page,
-                'perPage' => $perPage,
-                'totalPages' => $totalPages,
-            ], 200, [], JSON_UNESCAPED_SLASHES),
-            'MANAGED_USERS_CORS_ORIGIN',
-            'LOGIN_CORS_ORIGIN'
-        );
+        return response()->json([
+            'sucess' => true,
+            'users' => $users,
+            'total' => $total,
+            'page' => $page,
+            'perPage' => $perPage,
+            'totalPages' => $totalPages,
+        ], 200, [], JSON_UNESCAPED_SLASHES);
     }
 
     private function handleDelete(array $body)
     {
         $id = isset($body['id']) ? (int) $body['id'] : 0;
         if ($id < 1) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'id is required for delete'], 400),
-                'MANAGED_USERS_CORS_ORIGIN',
-                'LOGIN_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'id is required for delete'], 400);
         }
 
         try {
             $deleted = DB::table('managed_users')->where('id', $id)->delete();
         } catch (Throwable) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'Database connection failed'], 500),
-                'MANAGED_USERS_CORS_ORIGIN',
-                'LOGIN_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'Database connection failed'], 500);
         }
 
         if ($deleted < 1) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'User not found'], 404),
-                'MANAGED_USERS_CORS_ORIGIN',
-                'LOGIN_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'User not found'], 404);
         }
 
-        return $this->withCors(
-            response()->json(['ok' => true], 200, [], JSON_UNESCAPED_SLASHES),
-            'MANAGED_USERS_CORS_ORIGIN',
-            'LOGIN_CORS_ORIGIN'
-        );
+        return response()->json(['sucess' => true], 200, [], JSON_UNESCAPED_SLASHES);
     }
 
     private function handleSave(array $body)
@@ -149,48 +117,32 @@ class ManagedUsersController extends BaseApiController
             ]);
         } catch (QueryException $e) {
             if ((int) ($e->errorInfo[1] ?? 0) === 1062) {
-                return $this->withCors(
-                    response()->json(['ok' => false, 'error' => 'Email or phone is already in use'], 409),
-                    'MANAGED_USERS_CORS_ORIGIN',
-                    'LOGIN_CORS_ORIGIN'
-                );
+                return response()->json(['sucess' => false, 'error' => 'Email or phone is already in use'], 409);
             }
 
             throw $e;
         } catch (Throwable) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'Database connection failed'], 500),
-                'MANAGED_USERS_CORS_ORIGIN',
-                'LOGIN_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'Database connection failed'], 500);
         }
 
-        return $this->withCors(
-            response()->json([
-                'ok' => true,
-                'user' => [
-                    'id' => (int) $newId,
-                    'name' => $name,
-                    'companyName' => $companyName,
-                    'email' => $email,
-                    'phone' => $phone,
-                    'role' => $role,
-                ],
-            ], 200, [], JSON_UNESCAPED_SLASHES),
-            'MANAGED_USERS_CORS_ORIGIN',
-            'LOGIN_CORS_ORIGIN'
-        );
+        return response()->json([
+            'sucess' => true,
+            'user' => [
+                'id' => (int) $newId,
+                'name' => $name,
+                'companyName' => $companyName,
+                'email' => $email,
+                'phone' => $phone,
+                'role' => $role,
+            ],
+        ], 200, [], JSON_UNESCAPED_SLASHES);
     }
 
     private function handleUpdate(array $body)
     {
         $id = isset($body['id']) ? (int) $body['id'] : 0;
         if ($id < 1) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'id is required for update'], 400),
-                'MANAGED_USERS_CORS_ORIGIN',
-                'LOGIN_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'id is required for update'], 400);
         }
 
         [$name, $companyName, $email, $phone, $role, $error] = $this->validatedUserPayload($body);
@@ -201,11 +153,7 @@ class ManagedUsersController extends BaseApiController
         try {
             $exists = DB::table('managed_users')->where('id', $id)->exists();
             if (!$exists) {
-                return $this->withCors(
-                    response()->json(['ok' => false, 'error' => 'User not found'], 404),
-                    'MANAGED_USERS_CORS_ORIGIN',
-                    'LOGIN_CORS_ORIGIN'
-                );
+                return response()->json(['sucess' => false, 'error' => 'User not found'], 404);
             }
 
             DB::table('managed_users')
@@ -219,37 +167,25 @@ class ManagedUsersController extends BaseApiController
                 ]);
         } catch (QueryException $e) {
             if ((int) ($e->errorInfo[1] ?? 0) === 1062) {
-                return $this->withCors(
-                    response()->json(['ok' => false, 'error' => 'Email or phone is already in use'], 409),
-                    'MANAGED_USERS_CORS_ORIGIN',
-                    'LOGIN_CORS_ORIGIN'
-                );
+                return response()->json(['sucess' => false, 'error' => 'Email or phone is already in use'], 409);
             }
 
             throw $e;
         } catch (Throwable) {
-            return $this->withCors(
-                response()->json(['ok' => false, 'error' => 'Database connection failed'], 500),
-                'MANAGED_USERS_CORS_ORIGIN',
-                'LOGIN_CORS_ORIGIN'
-            );
+            return response()->json(['sucess' => false, 'error' => 'Database connection failed'], 500);
         }
 
-        return $this->withCors(
-            response()->json([
-                'ok' => true,
-                'user' => [
-                    'id' => $id,
-                    'name' => $name,
-                    'companyName' => $companyName,
-                    'email' => $email,
-                    'phone' => $phone,
-                    'role' => $role,
-                ],
-            ], 200, [], JSON_UNESCAPED_SLASHES),
-            'MANAGED_USERS_CORS_ORIGIN',
-            'LOGIN_CORS_ORIGIN'
-        );
+        return response()->json([
+            'sucess' => true,
+            'user' => [
+                'id' => $id,
+                'name' => $name,
+                'companyName' => $companyName,
+                'email' => $email,
+                'phone' => $phone,
+                'role' => $role,
+            ],
+        ], 200, [], JSON_UNESCAPED_SLASHES);
     }
 
     private function validatedUserPayload(array $body): array
@@ -261,39 +197,19 @@ class ManagedUsersController extends BaseApiController
         $role = $this->validRole($body['role'] ?? null);
 
         if ($name === '') {
-            return [$name, $companyName, $email, $phone, $role, $this->withCors(
-                response()->json(['ok' => false, 'error' => 'name is required'], 400),
-                'MANAGED_USERS_CORS_ORIGIN',
-                'LOGIN_CORS_ORIGIN'
-            )];
+            return [$name, $companyName, $email, $phone, $role, response()->json(['sucess' => false, 'error' => 'name is required'], 400)];
         }
         if ($companyName === '') {
-            return [$name, $companyName, $email, $phone, $role, $this->withCors(
-                response()->json(['ok' => false, 'error' => 'companyName is required'], 400),
-                'MANAGED_USERS_CORS_ORIGIN',
-                'LOGIN_CORS_ORIGIN'
-            )];
+            return [$name, $companyName, $email, $phone, $role, response()->json(['sucess' => false, 'error' => 'companyName is required'], 400)];
         }
         if ($email === '' || !str_contains($email, '@')) {
-            return [$name, $companyName, $email, $phone, $role, $this->withCors(
-                response()->json(['ok' => false, 'error' => 'valid email is required'], 400),
-                'MANAGED_USERS_CORS_ORIGIN',
-                'LOGIN_CORS_ORIGIN'
-            )];
+            return [$name, $companyName, $email, $phone, $role, response()->json(['sucess' => false, 'error' => 'valid email is required'], 400)];
         }
         if ($phone === '' || strlen($phone) < 8) {
-            return [$name, $companyName, $email, $phone, $role, $this->withCors(
-                response()->json(['ok' => false, 'error' => 'valid phone number is required'], 400),
-                'MANAGED_USERS_CORS_ORIGIN',
-                'LOGIN_CORS_ORIGIN'
-            )];
+            return [$name, $companyName, $email, $phone, $role, response()->json(['sucess' => false, 'error' => 'valid phone number is required'], 400)];
         }
         if ($role === null) {
-            return [$name, $companyName, $email, $phone, $role, $this->withCors(
-                response()->json(['ok' => false, 'error' => 'role must be admin or business'], 400),
-                'MANAGED_USERS_CORS_ORIGIN',
-                'LOGIN_CORS_ORIGIN'
-            )];
+            return [$name, $companyName, $email, $phone, $role, response()->json(['sucess' => false, 'error' => 'role must be admin or business'], 400)];
         }
 
         return [$name, $companyName, $email, $phone, $role, null];
