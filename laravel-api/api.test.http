@@ -1,0 +1,75 @@
+# Login
+POST http://127.0.0.1:8000/api/login
+Content-Type: application/json
+
+{
+    "email": "admin@admin.com",
+    "password": "admin"
+}
+
+###
+# Store WiFi password
+POST http://127.0.0.1:8000/api/store-wifi-password
+Content-Type: application/json
+
+{
+    "wifiPassword": "123456"
+}
+
+###
+# Auth WiFi client
+POST http://127.0.0.1:8000/api/wifi-client-auth
+Content-Type: application/json
+
+{
+    "phone": "0712345678",
+    "wifiPassword": "123456"
+}
+
+###
+# Send SMS (contacts as comma-separated text)
+POST http://127.0.0.1:8000/api/send-sms
+Content-Type: application/json
+
+{
+    "senderId": "NILETEE",
+    "message": "Hello from API test",
+    "contacts": "0656121885",
+    "deliveryReportUrl": "https://your-server.com/delivery-callback"
+}
+
+###
+# Delivery callback test (JSON)
+POST http://127.0.0.1:8000/api/delivery-callback
+Content-Type: application/json
+
+{
+    "messageId": "abc-123",
+    "phone": "255712345678",
+    "status": "DELIVERED",
+    "provider": "kilakona"
+}
+
+###
+# Send SMS (upload file with numbers in column A)
+POST http://127.0.0.1:8000/api/send-sms
+Content-Type: multipart/form-data; boundary=MyBoundary
+
+--MyBoundary
+Content-Disposition: form-data; name="senderId"
+
+NILETEE
+--MyBoundary
+Content-Disposition: form-data; name="message"
+
+Hello from uploaded contacts
+--MyBoundary
+Content-Disposition: form-data; name="deliveryReportUrl"
+
+https://your-server.com/delivery-callback
+--MyBoundary
+Content-Disposition: form-data; name="contactsFile"; filename="contacts.csv"
+Content-Type: text/csv
+
+0656121885
+--MyBoundary--
