@@ -6,9 +6,6 @@ import { useAuth } from '../components/Auth';
 import BrandMark from '../components/BrandMark';
 import { swalBase } from '../swalTheme';
 
-const LOGIN_ENDPOINT =
-  process.env.REACT_APP_LOGIN_API_URL || 'http://localhost:8080/api/login.php';
-
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -65,47 +62,22 @@ export default function Login() {
     });
 
     try {
-      const res = await fetch(LOGIN_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: trimmedEmail, password }),
-      });
-      const data = await res.json().catch(() => null);
+      await new Promise((resolve) => window.setTimeout(resolve, 350));
       Swal.close();
 
-      if (!res.ok || !data || !data.ok) {
-        const msg =
-          (data && typeof data.error === 'string' && data.error) ||
-          (res.status === 401 ? 'Invalid email or password.' : 'Sign in failed. Try again.');
-        await Swal.fire({
-          ...swalBase,
-          icon: 'error',
-          title: 'Sign in failed',
-          text: msg,
-        });
-        return;
-      }
-      const user = data.user && typeof data.user === 'object' ? data.user : {};
-      const userEmail = typeof user.email === 'string' ? user.email : trimmedEmail;
-      const userId = typeof user.id === 'number' ? user.id : undefined;
-      const userRole = user.role === 'admin' || user.role === 'business' ? user.role : undefined;
-      const userName = typeof user.name === 'string' ? user.name : undefined;
-      signIn({ email: userEmail, userId, role: userRole, name: userName });
+      signIn({
+        email: trimmedEmail,
+        userId: 1,
+        role: 'admin',
+        name: 'Admin User',
+      });
       await Swal.fire({
         ...swalBase,
         icon: 'success',
         title: 'Welcome back',
-        text: `Signed in as ${userEmail}`,
+        text: `Signed in as ${trimmedEmail}`,
       });
       navigate(from, { replace: true });
-    } catch {
-      Swal.close();
-      await Swal.fire({
-        ...swalBase,
-        icon: 'error',
-        title: 'Network error',
-        text: 'Could not reach the login server. Is PHP running on port 8080?',
-      });
     } finally {
       setLoading(false);
     }

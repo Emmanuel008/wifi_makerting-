@@ -6,10 +6,18 @@ import { FiEdit2, FiTrash2 } from 'react-icons/fi';
 import Pagination from '../components/Pagination';
 import { swalBase } from '../swalTheme';
 
-const USERS_API_URL =
-  process.env.REACT_APP_USERS_API_URL || 'http://localhost:8080/api/managed-users.php';
-
 const PAGE_SIZE = 10;
+const USERS_STORAGE_KEY = 'wm_users_v1';
+const DEFAULT_USERS = [
+  {
+    id: 1,
+    name: 'Admin User',
+    companyName: 'WiFi Marketing',
+    email: 'admin@admin.com',
+    phone: '+255700000001',
+    role: 'admin',
+  },
+];
 
 function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
@@ -26,32 +34,23 @@ function roleLabel(role) {
   return role === 'admin' ? 'Admin' : 'Business';
 }
 
-function afterSwalClose() {
-  return new Promise((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(resolve));
-  });
+function loadStoredUsers() {
+  try {
+    const raw = localStorage.getItem(USERS_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return Array.isArray(parsed) ? parsed : DEFAULT_USERS;
+  } catch {
+    return DEFAULT_USERS;
+  }
 }
 
-async function apiPost(payload) {
-  const res = await fetch(USERS_API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  let data = null;
-  try {
-    data = await res.json();
-  } catch {
-    /* ignore */
-  }
-  return { res, data };
+function saveStoredUsers(users) {
+  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
 }
 
 export default function UserManagement() {
-  const [users, setUsers] = React.useState([]);
-  const [total, setTotal] = React.useState(0);
+  const [allUsers, setAllUsers] = React.useState(() => loadStoredUsers());
   const [page, setPage] = React.useState(1);
-  const [listLoading, setListLoading] = React.useState(true);
   const [name, setName] = React.useState('');
   const [companyName, setCompanyName] = React.useState('');
   const [email, setEmail] = React.useState('');
@@ -61,53 +60,17 @@ export default function UserManagement() {
   const [editingId, setEditingId] = React.useState(null);
   const [saving, setSaving] = React.useState(false);
   const nameRef = React.useRef(null);
-  const pageRef = React.useRef(1);
-  pageRef.current = page;
-
-  const loadUsers = React.useCallback(async (listPage) => {
-    const p = listPage !== undefined && listPage !== null ? listPage : pageRef.current;
-    setListLoading(true);
-    try {
-      const { res, data } = await apiPost({
-        action: 'list',
-        page: p,
-        perPage: PAGE_SIZE,
-      });
-      if (!res.ok || !data || !data.ok || !Array.isArray(data.users)) {
-        await Swal.fire({
-          ...swalBase,
-          icon: 'error',
-          title: 'Could not load users',
-          text:
-            (data && data.error) ||
-            'Check that the PHP API is running and the database table exists (managed_users.sql).',
-        });
-        setUsers([]);
-        setTotal(0);
-        return;
-      }
-      if (typeof data.page === 'number') {
-        setPage(data.page);
-      }
-      setTotal(typeof data.total === 'number' ? data.total : 0);
-      setUsers(data.users);
-    } catch {
-      await Swal.fire({
-        ...swalBase,
-        icon: 'error',
-        title: 'Network error',
-        text: 'Could not reach the user management API. Is PHP running on port 8080?',
-      });
-      setUsers([]);
-      setTotal(0);
-    } finally {
-      setListLoading(false);
-    }
-  }, []);
 
   React.useEffect(() => {
-    loadUsers(1);
-  }, [loadUsers]);
+    saveStoredUsers(allUsers);
+  }, [allUsers]);
+
+  const users = React.useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return allUsers.slice(start, start + PAGE_SIZE);
+  }, [allUsers, page]);
+  const total = allUsers.length;
+  const listLoading = false;
 
   const closeModal = React.useCallback(() => {
     setShowForm(false);
@@ -134,15 +97,6 @@ export default function UserManagement() {
     return () => window.removeEventListener('keydown', onKey);
   }, [showForm, closeModal]);
 
-  React.useEffect(() => {
-    if (!showForm) return undefined;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [showForm]);
-
   function focusAddUser() {
     setEditingId(null);
     setName('');
@@ -165,134 +119,37 @@ export default function UserManagement() {
 
   async function submitUser(e) {
     e.preventDefault();
-
     const trimmedName = String(name || '').trim();
-    if (!trimmedName) {
-      await Swal.fire({
-        ...swalBase,
-        icon: 'warning',
-        title: 'Name required',
-        text: 'Enter the user’s full name.',
-      });
-      return;
-    }
-
     const trimmedCompanyName = String(companyName || '').trim();
-    if (!trimmedCompanyName) {
-      await Swal.fire({
-        ...swalBase,
-        icon: 'warning',
-        title: 'Company required',
-        text: 'Enter the company name.',
-      });
-      return;
-    }
-
     const normalizedEmail = normalizeEmail(email);
-    if (!normalizedEmail || !normalizedEmail.includes('@')) {
-      await Swal.fire({
-        ...swalBase,
-        icon: 'warning',
-        title: 'Invalid email',
-        text: 'Enter a valid email address.',
-      });
-      return;
-    }
-
     const normalized = normalizePhone(phone);
-    if (!normalized || normalized.length < 8) {
-      await Swal.fire({
-        ...swalBase,
-        icon: 'warning',
-        title: 'Invalid phone',
-        text: 'Enter a valid phone number (include country code, e.g. +255…).',
-      });
-      return;
-    }
-    if (role !== 'admin' && role !== 'business') {
-      await Swal.fire({
-        ...swalBase,
-        icon: 'warning',
-        title: 'Role required',
-        text: 'Choose Admin or Business.',
-      });
+
+    if (!trimmedName || !trimmedCompanyName || !normalizedEmail.includes('@') || normalized.length < 8) {
+      await Swal.fire({ ...swalBase, icon: 'warning', title: 'Invalid fields', text: 'Please complete all fields correctly.' });
       return;
     }
 
     setSaving(true);
-    Swal.fire({
-      ...swalBase,
-      title: editingId ? 'Updating…' : 'Saving…',
-      allowOutsideClick: false,
-      showConfirmButton: false,
-      didOpen: () => Swal.showLoading(),
-    });
-
-    try {
-      const payload = editingId
-        ? {
-            action: 'update',
-            id: editingId,
-            name: trimmedName,
-            companyName: trimmedCompanyName,
-            email: normalizedEmail,
-            phone: normalized,
-            role,
-          }
-        : {
-            action: 'save',
-            name: trimmedName,
-            companyName: trimmedCompanyName,
-            email: normalizedEmail,
-            phone: normalized,
-            role,
-          };
-
-      const { res, data } = await apiPost(payload);
-      Swal.close();
-      await afterSwalClose();
-
-      if (!res.ok || !data || !data.ok) {
-        const msg =
-          (data && typeof data.error === 'string' && data.error) ||
-          (res.status === 409
-            ? 'Email or phone is already in use.'
-            : 'Could not save the user.');
-        await Swal.fire({
-          ...swalBase,
-          icon: 'error',
-          title: editingId ? 'Update failed' : 'Could not add user',
-          text: msg,
-        });
-        return;
+    const nextUsers = [...allUsers];
+    if (editingId) {
+      const idx = nextUsers.findIndex((u) => u.id === editingId);
+      if (idx >= 0) {
+        nextUsers[idx] = { ...nextUsers[idx], name: trimmedName, companyName: trimmedCompanyName, email: normalizedEmail, phone: normalized, role };
       }
-
-      await Swal.fire({
-        ...swalBase,
-        icon: 'success',
-        title: editingId ? 'User updated' : 'User added',
-        text: editingId
-          ? `${trimmedName} was updated successfully.`
-          : `${trimmedName} was added to the directory.`,
+    } else {
+      nextUsers.unshift({
+        id: Date.now(),
+        name: trimmedName,
+        companyName: trimmedCompanyName,
+        email: normalizedEmail,
+        phone: normalized,
+        role,
       });
-      closeModal();
-      if (!editingId) {
-        await loadUsers(1);
-      } else {
-        await loadUsers();
-      }
-    } catch {
-      Swal.close();
-      await afterSwalClose();
-      await Swal.fire({
-        ...swalBase,
-        icon: 'error',
-        title: 'Network error',
-        text: 'Could not reach the user management API.',
-      });
-    } finally {
-      setSaving(false);
     }
+    setAllUsers(nextUsers);
+    setPage(1);
+    setSaving(false);
+    closeModal();
   }
 
   async function removeUser(user) {
@@ -306,57 +163,11 @@ export default function UserManagement() {
       cancelButtonText: 'Cancel',
       confirmButtonColor: '#c0392b',
     });
-    if (!result.isConfirmed) {
-      return;
-    }
-
-    Swal.fire({
-      ...swalBase,
-      title: 'Deleting…',
-      allowOutsideClick: false,
-      showConfirmButton: false,
-      didOpen: () => Swal.showLoading(),
-    });
-
-    try {
-      const { res, data } = await apiPost({ action: 'delete', id: user.id });
-      Swal.close();
-      await afterSwalClose();
-      if (!res.ok || !data || !data.ok) {
-        await Swal.fire({
-          ...swalBase,
-          icon: 'error',
-          title: 'Delete failed',
-          text: (data && data.error) || 'Could not delete this user.',
-        });
-        return;
-      }
-      await Swal.fire({
-        ...swalBase,
-        icon: 'success',
-        title: 'User removed',
-        text: `${user.name || user.email || 'The user'} was deleted from the directory.`,
-      });
-      await loadUsers();
-    } catch {
-      Swal.close();
-      await afterSwalClose();
-      await Swal.fire({
-        ...swalBase,
-        icon: 'error',
-        title: 'Network error',
-        text: 'Could not reach the user management API.',
-      });
-    }
+    if (!result.isConfirmed) return;
+    setAllUsers((prev) => prev.filter((u) => u.id !== user.id));
   }
 
-  const onPageChange = React.useCallback(
-    (next) => {
-      setPage(next);
-      loadUsers(next);
-    },
-    [loadUsers]
-  );
+  const onPageChange = React.useCallback((next) => setPage(next), []);
 
   const modal =
     showForm &&
@@ -474,7 +285,7 @@ export default function UserManagement() {
           <button
             className="btnSecondary"
             type="button"
-            onClick={() => loadUsers()}
+            onClick={() => setAllUsers(loadStoredUsers())}
             disabled={listLoading}
           >
             Refresh

@@ -2,11 +2,7 @@ import React, { useCallback, useState } from 'react';
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 import { swalBase } from '../swalTheme';
-
-const SMS_ENDPOINT =
-  process.env.REACT_APP_SMS_API_URL || 'http://localhost:8080/api/send-sms.php';
-
-const DEFAULT_DELIVERY_REPORT_URL = 'https://your-server.com/delivery-callback';
+import client from '../api/client';
 
 function normalizeContacts(raw) {
   return raw
@@ -16,13 +12,66 @@ function normalizeContacts(raw) {
     .join(',');
 }
 
+function parseContactsFromSheetText(text) {
+  return String(text || '')
+    .split(/[\n,;\t\r]+/)
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .filter((x) => /\d/.test(x));
+}
+
 export default function BulkSMS() {
-  const [senderId, setSenderId] = useState('CAFFEE COFFE');
+  const [senderId, setSenderId] = useState('NILETEE');
   const [message, setMessage] = useState(
     'Hi! Show this message at checkout for 10% off today only.'
   );
   const [contacts, setContacts] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const onSheetUpload = useCallback(async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const fileName = String(file.name || '').toLowerCase();
+    if (!fileName.endsWith('.csv') && !fileName.endsWith('.txt')) {
+      await Swal.fire({
+        ...swalBase,
+        icon: 'warning',
+        title: 'Unsupported file',
+        text: 'Please upload a CSV or TXT file with phone numbers.',
+      });
+      e.target.value = '';
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const parsed = parseContactsFromSheetText(text);
+      if (parsed.length === 0) {
+        await Swal.fire({
+          ...swalBase,
+          icon: 'warning',
+          title: 'No phone numbers found',
+          text: 'The uploaded file did not contain valid phone numbers.',
+        });
+        return;
+      }
+
+      setContacts((prev) => {
+        const merged = [...parseContactsFromSheetText(prev), ...parsed];
+        const unique = Array.from(new Set(merged));
+        return unique.join(',');
+      });
+
+      await Swal.fire({
+        ...swalBase,
+        icon: 'success',
+        title: 'Sheet imported',
+        text: `${parsed.length} number(s) imported from file.`,
+      });
+    } finally {
+      e.target.value = '';
+    }
+  }, []);
 
   const saveDraft = useCallback(() => {
     Swal.fire({
@@ -61,57 +110,33 @@ export default function BulkSMS() {
         senderId: senderId.trim(),
         message: message.trim(),
         contacts: normalized,
-        deliveryReportUrl: DEFAULT_DELIVERY_REPORT_URL,
       };
 
-      const res = await fetch(SMS_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      let data = {};
-      try {
-        data = await res.json();
-      } catch {
-        /* ignore */
+      const { data } = await client.post('/api/send-sms', payload);
+      const isSuccess = Boolean(data?.success ?? data?.sucess);
+      if (!isSuccess) {
+        throw new Error(data?.error || data?.message || 'Failed to send SMS.');
       }
-
       Swal.close();
-
-      if (!res.ok) {
-        await Swal.fire({
-          ...swalBase,
-          icon: 'error',
-          title: 'Send failed',
-          text: 'Could not send the message. Please try again.',
-        });
-        return;
-      }
-
-      if (!data.ok) {
-        await Swal.fire({
-          ...swalBase,
-          icon: 'error',
-          title: 'Send failed',
-          text: 'The SMS provider did not accept this message.',
-        });
-        return;
-      }
 
       await Swal.fire({
         ...swalBase,
         icon: 'success',
         title: 'SMS sent successfully',
-        text: 'Your message was sent.',
+        text: `Prepared ${payload.contacts.split(',').length} recipient(s) for sending.`,
       });
-    } catch (err) {
+    } catch (error) {
       Swal.close();
+      const apiMessage =
+        error?.response?.data?.error ||
+        error?.response?.data?.message ||
+        error?.message ||
+        'An unexpected error occurred while sending SMS.';
       await Swal.fire({
         ...swalBase,
         icon: 'error',
-        title: 'Network error',
-        text: 'Could not reach the SMS service. Check your connection and try again.',
+        title: 'Failed to send SMS',
+        text: apiMessage,
       });
     } finally {
       setLoading(false);
@@ -146,7 +171,20 @@ export default function BulkSMS() {
               value={contacts}
               onChange={(e) => setContacts(e.target.value)}
             />
-            <div className="fieldHint">Sent to Kilakona as a comma-separated list.</div>
+            <div className="fieldHint">
+              Add manually or upload a CSV/TXT sheet. Numbers are merged and duplicates are removed.
+            </div>
+          </div>
+          <div className="field fieldWide">
+            <div className="fieldLabel">Upload numbers sheet</div>
+            <input
+              className="fieldInput"
+              type="file"
+              accept=".csv,.txt"
+              onChange={onSheetUpload}
+              disabled={loading}
+            />
+            <div className="fieldHint">Supported formats: `.csv` and `.txt`.</div>
           </div>
           <div className="field fieldWide">
             <div className="fieldLabel">Message</div>

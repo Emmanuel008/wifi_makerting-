@@ -7,6 +7,7 @@ import ConnectedUser from '../pages/ConnectedUser';
 import BulkSMS from '../pages/BulkSMS';
 import Portal from '../pages/Portal';
 import UserManagement from '../pages/UserManagement';
+import WifiPassword from '../pages/WifiPassword';
 import { swalBase } from '../swalTheme';
 import BrandMark from './BrandMark';
 import { useAuth } from './Auth';
@@ -16,6 +17,7 @@ const NAV_ITEMS = [
   { key: 'ConnectedUser', label: 'Connected User', to: '/connecteduser' },
   { key: 'BulkSMS', label: 'Bulk SMS', to: '/bulksms' },
   { key: 'UserManagement', label: 'User Management', to: '/usermanagement' },
+  { key: 'WifiPassword', label: 'WiFi Password', to: '/wifipassword' },
 ];
 
 function usePageTitle() {
@@ -29,6 +31,8 @@ function usePageTitle() {
       return 'Bulk SMS';
     case '/usermanagement':
       return 'User Management';
+    case '/wifipassword':
+      return 'WiFi Password';
     case '/portal':
       return 'Portal';
     default:
@@ -100,7 +104,7 @@ export default function AppShell() {
         <div className="sidebarFooter">
           <div className="sidebarHint">v0.1 • Internal</div>
           <button className="portalLink" type="button" onClick={() => navigate('/portal')}>
-            Open Portal
+            Captive portal
           </button>
           <button className="signOutLink" type="button" onClick={onSignOut}>
             Sign out
@@ -141,6 +145,7 @@ export default function AppShell() {
             <Route path="/connecteduser" element={<ConnectedUser />} />
             <Route path="/bulksms" element={<BulkSMS />} />
             <Route path="/usermanagement" element={<UserManagement />} />
+            <Route path="/wifipassword" element={<WifiPassword />} />
             <Route
               path="/portal"
               element={

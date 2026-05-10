@@ -1,13 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Pagination from '../components/Pagination';
-import Swal from 'sweetalert2';
-import 'sweetalert2/dist/sweetalert2.min.css';
-import { swalBase } from '../swalTheme';
-
-const LIST_URL =
-  process.env.REACT_APP_WIFI_CONNECTED_LIST_URL || 'http://localhost:8080/api/wifi-connected-list.php';
 
 const PAGE_SIZE = 10;
+const MOCK_ROWS = [
+  { id: 1, phone: '+255700000001', device: 'iPhone', ssid: 'Cafe Guest', onlineSeconds: 1200, isLive: true },
+  { id: 2, phone: '+255700000002', device: 'Android', ssid: 'Cafe Guest', onlineSeconds: 540, isLive: true },
+  { id: 3, phone: '+255700000003', device: 'Windows', ssid: 'Office WiFi', onlineSeconds: 4300, isLive: false },
+];
 
 function formatDuration(seconds) {
   const s = Number(seconds);
@@ -31,36 +30,11 @@ export default function ConnectedUser() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    try {
-      const res = await fetch(LIST_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ page, pageSize: PAGE_SIZE }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data?.ok) {
-        const msg =
-          (data && typeof data.error === 'string' && data.error) ||
-          'Could not load sessions. Is PHP/MySQL running and wifi_sessions.sql applied?';
-        await Swal.fire({ ...swalBase, icon: 'error', title: 'Connected users', text: msg });
-        setRows([]);
-        setTotal(0);
-        return;
-      }
-      setRows(Array.isArray(data.rows) ? data.rows : []);
-      setTotal(typeof data.total === 'number' ? data.total : 0);
-    } catch {
-      await Swal.fire({
-        ...swalBase,
-        icon: 'error',
-        title: 'Network',
-        text: 'Could not reach the WiFi sessions API.',
-      });
-      setRows([]);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
+    await new Promise((resolve) => window.setTimeout(resolve, 250));
+    const start = (page - 1) * PAGE_SIZE;
+    setRows(MOCK_ROWS.slice(start, start + PAGE_SIZE));
+    setTotal(MOCK_ROWS.length);
+    setLoading(false);
   }, [page]);
 
   useEffect(() => {
