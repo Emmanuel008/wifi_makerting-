@@ -45,6 +45,10 @@ export default function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthed, session, signOut } = useAuth();
+  const [menuOpen, setMenuOpen] = React.useState(false);
+
+  // Close drawer on route change
+  React.useEffect(() => { setMenuOpen(false); }, [location.pathname]);
 
   const onSignOut = React.useCallback(async () => {
     const result = await Swal.fire({
@@ -77,7 +81,12 @@ export default function AppShell() {
 
   return (
     <div className="appShell">
-      <aside className="sidebar" aria-label="Primary">
+      {/* Mobile overlay */}
+      {menuOpen && (
+        <div className="sidebarOverlay" onClick={() => setMenuOpen(false)} aria-hidden="true" />
+      )}
+
+      <aside className={`sidebar ${menuOpen ? 'sidebarOpen' : ''}`} aria-label="Primary">
         <div className="sidebarBrand">
           <BrandMark />
           <div className="brandText">
@@ -115,8 +124,17 @@ export default function AppShell() {
       <div className="mainColumn">
         <header className="topbar">
           <div className="topbarLeft">
-            <div className="pageTitle">{pageTitle}</div>
-            <div className="pageSubtitle">Overview and recent activity</div>
+            <button
+              className="hamburgerBtn"
+              onClick={() => setMenuOpen(o => !o)}
+              aria-label="Toggle menu"
+            >
+              ☰
+            </button>
+            <div>
+              <div className="pageTitle">{pageTitle}</div>
+              <div className="pageSubtitle">Overview and recent activity</div>
+            </div>
           </div>
           <div className="topbarRight">
             <label className="search" aria-label="Search">

@@ -1,28 +1,39 @@
 import React from 'react';
+import client from '../api/client';
 
 export default function Dashboard() {
+  const [stats, setStats] = React.useState(null);
+
+  React.useEffect(() => {
+    client.get('/api/dashboard-stats').then(({ data }) => setStats(data)).catch(() => {});
+  }, []);
+
+  const totalClients   = stats?.total_clients   ?? '—';
+  const totalSms       = stats?.total_sms        ?? '—';
+  const deliverability = stats?.deliverability != null ? `${stats.deliverability}%` : '—';
+
   return (
     <>
       <section className="kpis" aria-label="Key metrics">
         <div className="card kpi">
-          <div className="kpiHeader">Connected users</div>
-          <div className="kpiValue">128</div>
-          <div className="kpiDelta kpiUp">+12% vs. yesterday</div>
+          <div className="kpiHeader">Registered users</div>
+          <div className="kpiValue">{totalClients}</div>
+          <div className="kpiDelta">Total phone numbers collected</div>
         </div>
         <div className="card kpi">
-          <div className="kpiHeader">WiFi sessions (24h)</div>
-          <div className="kpiValue">1,042</div>
-          <div className="kpiDelta">Peak at 6:10 PM</div>
+          <div className="kpiHeader">SMS campaigns</div>
+          <div className="kpiValue">{totalSms}</div>
+          <div className="kpiDelta">Total campaigns sent</div>
         </div>
         <div className="card kpi">
-          <div className="kpiHeader">SMS sent (7d)</div>
-          <div className="kpiValue">8,390</div>
-          <div className="kpiDelta kpiDown">-3% week over week</div>
+          <div className="kpiHeader">SMS delivered</div>
+          <div className="kpiValue">{stats?.delivered_sms ?? '—'}</div>
+          <div className="kpiDelta">Successfully delivered messages</div>
         </div>
         <div className="card kpi">
           <div className="kpiHeader">Deliverability</div>
-          <div className="kpiValue">98.7%</div>
-          <div className="kpiDelta">Stable</div>
+          <div className="kpiValue">{deliverability}</div>
+          <div className="kpiDelta">{stats ? 'Calculated from outbox' : 'Loading…'}</div>
         </div>
       </section>
 

@@ -5,6 +5,7 @@ import 'sweetalert2/dist/sweetalert2.min.css';
 import { useAuth } from '../components/Auth';
 import BrandMark from '../components/BrandMark';
 import { swalBase } from '../swalTheme';
+import client from '../api/client';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -62,22 +63,30 @@ export default function Login() {
     });
 
     try {
-      await new Promise((resolve) => window.setTimeout(resolve, 350));
+      const { data } = await client.post('/api/login', { email: trimmedEmail, password });
       Swal.close();
 
+      const user = data.user ?? {};
       signIn({
-        email: trimmedEmail,
-        userId: 1,
-        role: 'admin',
-        name: 'Admin User',
+        email: user.email ?? trimmedEmail,
+        userId: user.id ?? null,
+        role: user.role ?? 'admin',
+        name: user.name ?? trimmedEmail,
       });
       await Swal.fire({
         ...swalBase,
         icon: 'success',
         title: 'Welcome back',
-        text: `Signed in as ${trimmedEmail}`,
+        text: `Signed in as ${user.name ?? trimmedEmail}`,
       });
       navigate(from, { replace: true });
+    } catch (err) {
+      Swal.close();
+      const msg =
+        err?.response?.data?.error ||
+        err?.message ||
+        'Sign in failed. Check your credentials.';
+      await Swal.fire({ ...swalBase, icon: 'error', title: 'Sign in failed', text: msg });
     } finally {
       setLoading(false);
     }
