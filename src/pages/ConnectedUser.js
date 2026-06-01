@@ -229,16 +229,17 @@ export default function ConnectedUser() {
       </div>
       <div className="pageBody">
         <div className="table">
-          <div className="row head row6">
+          <div className="row head row7">
             <div>Phone number</div>
             <div>MAC address</div>
             <div>IP address</div>
             <div>Session</div>
             <div>Time limit</div>
+            <div>Registrations</div>
             <div></div>
           </div>
           {rows.length === 0 ? (
-            <div className="row row6">
+            <div className="row row7">
               <div className="muted" style={{ gridColumn: '1 / -1' }}>
                 {emptyHint}
               </div>
@@ -246,7 +247,7 @@ export default function ConnectedUser() {
           ) : (
             rows.map((r) => (
               <div
-                className="row row6"
+                className="row row7"
                 key={r.id}
                 style={r.is_active === false ? { opacity: 0.45 } : undefined}
               >
@@ -282,6 +283,9 @@ export default function ConnectedUser() {
                   >
                     {formatMinutes(r.session_minutes)}
                   </button>
+                </div>
+                <div data-label="Registrations" style={{ fontSize: 13, fontWeight: 600 }}>
+                  {r.registration_count ?? '—'}
                 </div>
                 <div className="iconActions">
                   {r.is_active === false ? (

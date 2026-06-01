@@ -409,6 +409,12 @@
   gap: 12px;
 }
 
+.row.row7 {
+  grid-template-columns: 1fr 1fr 1fr 1fr 0.75fr 0.6fr auto;
+  align-items: center;
+  gap: 12px;
+}
+
 .row.row5 .iconActions {
   flex-wrap: nowrap;
   justify-content: flex-end;
@@ -1426,6 +1432,7 @@ a.captiveContinue {
   .row,
   .row.row5,
   .row.row6,
+  .row.row7,
   .row.row4,
   .row.row3 {
     display: flex;
