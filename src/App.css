@@ -220,12 +220,52 @@
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.10);
   background: rgba(255, 255, 255, 0.05);
-  min-width: 320px;
+  min-width: 280px;
+  width: min(360px, 42vw);
+}
+
+.topbarSearch {
+  display: flex;
+  align-items: center;
+}
+
+.searchToggleBtn,
+.searchCloseBtn {
+  appearance: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.78);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  line-height: 1;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.searchToggleBtn:hover,
+.searchCloseBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: rgba(248, 250, 255, 0.96);
+}
+
+.searchCloseBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  flex-shrink: 0;
+  font-size: 14px;
 }
 
 .searchIcon {
   color: rgba(255, 255, 255, 0.55);
   font-size: 14px;
+  display: grid;
+  place-items: center;
 }
 
 .searchInput {
@@ -415,6 +455,31 @@
   gap: 12px;
 }
 
+/* Shared column tracks so header cells line up with data rows */
+.table.tableGrid7 {
+  display: grid;
+  grid-template-columns:
+    minmax(148px, 1.15fr)
+    minmax(132px, 1fr)
+    minmax(100px, 0.9fr)
+    minmax(118px, 1fr)
+    minmax(72px, 0.7fr)
+    minmax(84px, 0.55fr)
+    76px;
+  column-gap: 12px;
+}
+
+.table.tableGrid7 > .row.row7 {
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+}
+
+.row.row7 .iconActions {
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  width: 100%;
+}
+
 .row.row5 .iconActions {
   flex-wrap: nowrap;
   justify-content: flex-end;
@@ -602,6 +667,17 @@
   border-color: rgba(239, 68, 68, 0.35);
 }
 
+.iconBtnMuted {
+  opacity: 0.4;
+  cursor: default;
+  pointer-events: none;
+}
+
+.iconBtnMuted:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
 .pillRoleAdmin {
   border-color: rgba(124, 92, 255, 0.45);
   background: rgba(124, 92, 255, 0.14);
@@ -636,7 +712,7 @@
 }
 
 .authInner {
-  width: min(960px, 100%);
+  width: min(1040px, 100%);
 }
 
 .authCard {
@@ -655,44 +731,43 @@
 
 .loginLeft {
   position: relative;
-  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 560px;
+  padding: 28px 28px 34px;
   background:
-    radial-gradient(600px 420px at 10% 10%, rgba(124, 92, 255, 0.38), transparent 55%),
-    radial-gradient(520px 380px at 90% 30%, rgba(34, 197, 94, 0.16), transparent 55%),
-    rgba(255, 255, 255, 0.02);
+    linear-gradient(
+      180deg,
+      rgba(6, 10, 22, 0.08) 0%,
+      rgba(6, 10, 22, 0.42) 48%,
+      rgba(6, 10, 22, 0.82) 100%
+    ),
+    var(--login-hero-image) center / cover no-repeat;
   border-right: 1px solid rgba(255, 255, 255, 0.10);
 }
 
 .loginLeftInner {
   position: relative;
   z-index: 1;
-  padding: 10px 10px 14px;
-}
-
-.loginGlow {
-  position: absolute;
-  inset: -120px -120px auto auto;
-  width: 260px;
-  height: 260px;
-  background: radial-gradient(circle at 30% 30%, rgba(124, 92, 255, 0.55), transparent 60%);
-  filter: blur(2px);
-  opacity: 0.65;
+  max-width: 34ch;
 }
 
 .loginHeroTitle {
-  margin-top: 18px;
-  font-size: 26px;
+  margin-top: 14px;
+  font-size: clamp(28px, 3.2vw, 34px);
   font-weight: 780;
-  letter-spacing: -0.3px;
-  color: rgba(248, 250, 255, 0.96);
+  letter-spacing: -0.45px;
+  line-height: 1.08;
+  color: rgba(248, 250, 255, 0.98);
 }
 
 .loginHeroSub {
-  margin-top: 8px;
-  color: rgba(225, 232, 255, 0.72);
-  font-size: 13.5px;
+  margin-top: 10px;
+  color: rgba(225, 232, 255, 0.78);
+  font-size: 14px;
   line-height: 1.55;
-  max-width: 44ch;
+  max-width: 38ch;
 }
 
 .loginStats {
@@ -735,7 +810,6 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 12px;
 }
 
 .loginBrandText {
@@ -745,8 +819,9 @@
 
 .loginBrandName {
   font-weight: 720;
-  letter-spacing: 0.2px;
-  font-size: 15px;
+  letter-spacing: 0.15px;
+  font-size: 16px;
+  color: rgba(248, 250, 255, 0.96);
 }
 
 .loginBrandSub {
@@ -931,6 +1006,7 @@
     grid-template-columns: 1fr;
   }
   .loginLeft {
+    min-height: 320px;
     border-right: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.10);
   }
@@ -1099,6 +1175,43 @@ a.captiveContinue {
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.btnWithIcon {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filterToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.filterField {
+  flex: 1 1 200px;
+  min-width: 180px;
+  max-width: 280px;
+}
+
+.filterInput {
+  width: 100%;
+  color-scheme: dark;
+}
+
+.filterActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.filterHint {
+  margin: -6px 0 14px;
+  font-size: 12.5px;
 }
 
 .cardTitle {
@@ -1315,7 +1428,8 @@ a.captiveContinue {
     grid-template-columns: 1fr;
   }
   .search {
-    min-width: 220px;
+    min-width: 0;
+    width: min(100%, 320px);
   }
 }
 
@@ -1395,9 +1509,9 @@ a.captiveContinue {
     gap: 10px;
   }
 
-  /* Hide search on small screens; shown only when there's space */
+  /* Search collapses to icon on small screens until opened */
   .search {
-    display: none;
+    width: min(100%, 280px);
   }
 
   /* Shrink user chip */
@@ -1422,6 +1536,10 @@ a.captiveContinue {
 
   .userForm {
     grid-template-columns: 1fr;
+  }
+
+  .table.tableGrid7 {
+    display: block;
   }
 
   /* Data rows: hide header row, stack each row as a card */
@@ -1477,6 +1595,7 @@ a.captiveContinue {
   }
 
   .loginLeft {
+    min-height: 320px;
     border-right: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.10);
   }

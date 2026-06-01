@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Swal from 'sweetalert2';
+import { FiDownload, FiLock, FiPause, FiTrash2 } from 'react-icons/fi';
 import Pagination from '../components/Pagination';
 import client from '../api/client';
 import { swalBase } from '../swalTheme';
+import { downloadConnectedUsersXlsx } from '../utils/exportConnectedUsers';
 
 const PAGE_SIZE = 20;
 
@@ -50,13 +52,30 @@ function formatMinutes(min) {
   return `${h}h ${m}m`;
 }
 
+function toIsoParam(localDateTime) {
+  if (!localDateTime) return undefined;
+  const date = new Date(localDateTime);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.toISOString();
+}
+
+function isInvalidDateRange(fromValue, toValue) {
+  if (!fromValue || !toValue) return false;
+  return new Date(fromValue) > new Date(toValue);
+}
+
 export default function ConnectedUser() {
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState(null);
   const [now, setNow] = useState(Date.now());
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [appliedFrom, setAppliedFrom] = useState('');
+  const [appliedTo, setAppliedTo] = useState('');
   const autoExpiredRef = useRef(new Set());
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -189,7 +208,13 @@ export default function ConnectedUser() {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await client.get('/api/wifi-clients', { params: { page } });
+      const params = { page };
+      const from = toIsoParam(appliedFrom);
+      const to = toIsoParam(appliedTo);
+      if (from) params.from = from;
+      if (to) params.to = to;
+
+      const { data } = await client.get('/api/wifi-clients', { params });
       setRows(data.data ?? []);
       setTotal(data.total ?? 0);
     } catch (err) {
@@ -199,7 +224,75 @@ export default function ConnectedUser() {
     } finally {
       setLoading(false);
     }
-  }, [page]);
+  }, [page, appliedFrom, appliedTo]);
+
+  const applyFilters = useCallback(() => {
+    if (isInvalidDateRange(fromDate, toDate)) {
+      Swal.fire({
+        ...swalBase,
+        icon: 'error',
+        title: 'Invalid date range',
+        text: 'From date/time must be before To date/time.',
+      });
+      return;
+    }
+    setAppliedFrom(fromDate);
+    setAppliedTo(toDate);
+    setPage(1);
+  }, [fromDate, toDate]);
+
+  const clearFilters = useCallback(() => {
+    setFromDate('');
+    setToDate('');
+    setAppliedFrom('');
+    setAppliedTo('');
+    setPage(1);
+  }, []);
+
+  const handleExport = useCallback(async () => {
+    if (isInvalidDateRange(fromDate, toDate)) {
+      Swal.fire({
+        ...swalBase,
+        icon: 'error',
+        title: 'Invalid date range',
+        text: 'From date/time must be before To date/time.',
+      });
+      return;
+    }
+
+    setExporting(true);
+    try {
+      const params = { export: '1' };
+      const from = toIsoParam(fromDate);
+      const to = toIsoParam(toDate);
+      if (from) params.from = from;
+      if (to) params.to = to;
+
+      const { data } = await client.get('/api/wifi-clients', { params });
+      const exportRows = data.data ?? [];
+
+      if (exportRows.length === 0) {
+        Swal.fire({
+          ...swalBase,
+          icon: 'info',
+          title: 'No records',
+          text: 'No users match the selected date/time range.',
+        });
+        return;
+      }
+
+      downloadConnectedUsersXlsx(exportRows, fromDate, toDate);
+    } catch (err) {
+      Swal.fire({
+        ...swalBase,
+        icon: 'error',
+        title: 'Export failed',
+        text: err?.response?.data?.error || err?.message || 'Could not export clients.',
+      });
+    } finally {
+      setExporting(false);
+    }
+  }, [fromDate, toDate]);
 
   useEffect(() => {
     load();
@@ -212,9 +305,12 @@ export default function ConnectedUser() {
   const emptyHint = useMemo(() => {
     if (loading) return 'Loading…';
     if (error) return error;
-    if (total === 0) return 'No sessions yet. Guests appear after captive sign-in.';
+    if (total === 0) {
+      if (appliedFrom || appliedTo) return 'No users match the selected date/time range.';
+      return 'No sessions yet. Guests appear after captive sign-in.';
+    }
     return null;
-  }, [loading, error, total]);
+  }, [loading, error, total, appliedFrom, appliedTo]);
 
   return (
     <div className="card pageCard">
@@ -223,12 +319,67 @@ export default function ConnectedUser() {
           <div className="cardTitle">Connected User</div>
           <div className="cardSub">Phone numbers collected through the captive portal</div>
         </div>
-        <button className="btnSecondary" type="button" disabled={loading} onClick={() => load()}>
-          Refresh
-        </button>
+        <div className="cardHeaderActions">
+          <button className="btnSecondary" type="button" disabled={loading} onClick={() => load()}>
+            Refresh
+          </button>
+          <button
+            className="btnPrimary"
+            type="button"
+            disabled={exporting || loading}
+            onClick={handleExport}
+          >
+            <span className="btnWithIcon">
+              <FiDownload aria-hidden="true" />
+              {exporting ? 'Exporting…' : 'Download Excel'}
+            </span>
+          </button>
+        </div>
       </div>
       <div className="pageBody">
-        <div className="table">
+        <div className="filterToolbar" aria-label="Date filters">
+          <div className="filterField">
+            <label className="fieldLabel" htmlFor="connected-from">From</label>
+            <input
+              id="connected-from"
+              className="fieldInput filterInput"
+              type="datetime-local"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+            />
+          </div>
+          <div className="filterField">
+            <label className="fieldLabel" htmlFor="connected-to">To</label>
+            <input
+              id="connected-to"
+              className="fieldInput filterInput"
+              type="datetime-local"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+            />
+          </div>
+          <div className="filterActions">
+            <button className="btnSecondary" type="button" onClick={applyFilters} disabled={loading}>
+              Apply filter
+            </button>
+            <button
+              className="btnSecondary"
+              type="button"
+              onClick={clearFilters}
+              disabled={loading || (!fromDate && !toDate && !appliedFrom && !appliedTo)}
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+        {(appliedFrom || appliedTo) && (
+          <div className="filterHint muted">
+            Showing registrations
+            {appliedFrom ? ` from ${appliedFrom.replace('T', ' ')}` : ''}
+            {appliedTo ? ` to ${appliedTo.replace('T', ' ')}` : ''}.
+          </div>
+        )}
+        <div className="table tableGrid7">
           <div className="row head row7">
             <div>Phone number</div>
             <div>MAC address</div>
@@ -236,7 +387,7 @@ export default function ConnectedUser() {
             <div>Session</div>
             <div>Time limit</div>
             <div>Registrations</div>
-            <div></div>
+            <div>Actions</div>
           </div>
           {rows.length === 0 ? (
             <div className="row row7">
@@ -290,26 +441,31 @@ export default function ConnectedUser() {
                 <div className="iconActions">
                   {r.is_active === false ? (
                     <span
+                      className="iconBtn iconBtnMuted"
                       title="Suspended — user must sign in again through the portal"
-                      style={{ fontSize: 16, opacity: 0.4, cursor: 'default', padding: '4px 6px' }}
+                      aria-label="Suspended"
                     >
-                      🔒
+                      <FiLock aria-hidden="true" />
                     </span>
                   ) : (
                     <button
                       className="iconBtn iconBtnDanger"
+                      type="button"
                       title="Deactivate (disconnect)"
+                      aria-label={`Deactivate ${r.phone || 'client'}`}
                       onClick={() => handleDeactivate(r)}
                     >
-                      ⏸
+                      <FiPause aria-hidden="true" />
                     </button>
                   )}
                   <button
                     className="iconBtn iconBtnDanger"
+                    type="button"
                     title="Remove client"
+                    aria-label={`Remove ${r.phone || 'client'}`}
                     onClick={() => handleDelete(r)}
                   >
-                    🗑
+                    <FiTrash2 aria-hidden="true" />
                   </button>
                 </div>
               </div>

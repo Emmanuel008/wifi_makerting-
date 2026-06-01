@@ -1,6 +1,6 @@
 import React from 'react';
 
-const SRC = `${process.env.PUBLIC_URL}/icon.jpeg`;
+const SRC = `${process.env.PUBLIC_URL}/view.png`;
 
 export default function BrandMark() {
   return (

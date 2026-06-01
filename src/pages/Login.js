@@ -7,6 +7,8 @@ import BrandMark from '../components/BrandMark';
 import { swalBase } from '../swalTheme';
 import client from '../api/client';
 
+const LOGIN_HERO_IMAGE = `${process.env.PUBLIC_URL}/vibrant.png`;
+
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -96,21 +98,24 @@ export default function Login() {
     <div className="auth">
       <div className="authInner">
         <div className="loginFrame">
-          <div className="loginLeft" aria-hidden="true">
+          <div
+            className="loginLeft"
+            aria-hidden="true"
+            style={{ '--login-hero-image': `url(${LOGIN_HERO_IMAGE})` }}
+          >
             <div className="loginLeftInner">
               <div className="loginBrand">
                 <BrandMark />
                 <div className="loginBrandText">
-                  <div className="loginBrandName">WiFi Marketing</div>
+                  <div className="loginBrandName">TapKonecti</div>
                 </div>
               </div>
 
-              <div className="loginHeroTitle">Welcome back</div>
+              <div className="loginHeroTitle">The future of advertising</div>
               <div className="loginHeroSub">
-                Track visitor engagement, connected users, and bulk SMS campaigns in one dashboard.
+                Reach millions through our global network of premium digital billboards
               </div>
             </div>
-            <div className="loginGlow" />
           </div>
 
           <div className="loginRight">

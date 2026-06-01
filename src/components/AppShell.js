@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
+import { FiSearch, FiX } from 'react-icons/fi';
 import Dashboard from '../pages/Dashboard';
 import ConnectedUser from '../pages/ConnectedUser';
 import BulkSMS from '../pages/BulkSMS';
@@ -46,9 +47,37 @@ export default function AppShell() {
   const location = useLocation();
   const { isAuthed, session, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const [searchOpen, setSearchOpen] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const searchInputRef = React.useRef(null);
 
-  // Close drawer on route change
-  React.useEffect(() => { setMenuOpen(false); }, [location.pathname]);
+  // Close drawer and search on route change
+  React.useEffect(() => {
+    setMenuOpen(false);
+    setSearchOpen(false);
+    setSearchQuery('');
+  }, [location.pathname]);
+
+  React.useEffect(() => {
+    if (!searchOpen) return undefined;
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setSearchOpen(false);
+        setSearchQuery('');
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    searchInputRef.current?.focus();
+
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [searchOpen]);
+
+  const closeSearch = React.useCallback(() => {
+    setSearchOpen(false);
+    setSearchQuery('');
+  }, []);
 
   const onSignOut = React.useCallback(async () => {
     const result = await Swal.fire({
@@ -90,7 +119,7 @@ export default function AppShell() {
         <div className="sidebarBrand">
           <BrandMark />
           <div className="brandText">
-            <div className="brandName">WiFi Marketing</div>
+            <div className="brandName">TapKonecti</div>
             <div className="brandSub">Admin Console</div>
           </div>
         </div>
@@ -137,12 +166,39 @@ export default function AppShell() {
             </div>
           </div>
           <div className="topbarRight">
-            <label className="search" aria-label="Search">
-              <span className="searchIcon" aria-hidden="true">
-                ⌕
-              </span>
-              <input className="searchInput" placeholder="Search users, campaigns, logs…" />
-            </label>
+            <div className={`topbarSearch ${searchOpen ? 'isOpen' : ''}`}>
+              {!searchOpen ? (
+                <button
+                  className="searchToggleBtn"
+                  type="button"
+                  aria-label="Open search"
+                  onClick={() => setSearchOpen(true)}
+                >
+                  <FiSearch aria-hidden="true" />
+                </button>
+              ) : (
+                <label className="search" aria-label="Search">
+                  <span className="searchIcon" aria-hidden="true">
+                    <FiSearch />
+                  </span>
+                  <input
+                    ref={searchInputRef}
+                    className="searchInput"
+                    placeholder="Search users, campaigns, logs…"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  <button
+                    className="searchCloseBtn"
+                    type="button"
+                    aria-label="Close search"
+                    onClick={closeSearch}
+                  >
+                    <FiX aria-hidden="true" />
+                  </button>
+                </label>
+              )}
+            </div>
             <div className="userChip" role="group" aria-label="Signed in user">
               <div className="avatar" aria-hidden="true">
                 {(session?.name || session?.email || 'A').trim().charAt(0).toUpperCase() || 'A'}

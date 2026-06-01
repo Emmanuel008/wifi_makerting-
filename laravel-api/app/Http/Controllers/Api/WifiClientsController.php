@@ -77,31 +77,39 @@ class WifiClientsController extends BaseApiController
         return response()->json(['success' => true]);
     }
 
+    /**
+     * GET /api/wifi-clients
+     * Optional query params: page, from, to, export=1
+     */
     public function index(Request $request)
     {
+        $export = in_array($request->query('export'), ['1', 'true', 'yes'], true);
+        $query  = $this->baseQuery($request);
+
+        if ($export) {
+            $rows = $query
+                ->orderByDesc('wc.updated_at')
+                ->get()
+                ->map(fn ($row) => $this->mapWifiClientRow($row));
+
+            return response()->json([
+                'success' => true,
+                'data'    => $rows,
+                'total'   => $rows->count(),
+            ]);
+        }
+
         $page     = max(1, (int) ($request->query('page', 1)));
         $pageSize = 20;
         $offset   = ($page - 1) * $pageSize;
+        $total    = (clone $query)->count();
 
-        $total = DB::table('wifi_clients')->count();
-
-        $rows = DB::table('wifi_clients as wc')
-            ->select([
-                'wc.id', 'wc.phone', 'wc.mac_address', 'wc.ip_address',
-                'wc.is_active', 'wc.session_minutes', 'wc.session_started_at',
-                'wc.created_at', 'wc.updated_at',
-                DB::raw('(SELECT COUNT(*) FROM wifi_clients WHERE phone = wc.phone) as registration_count'),
-            ])
+        $rows = $query
             ->orderByDesc('wc.updated_at')
             ->limit($pageSize)
             ->offset($offset)
             ->get()
-            ->map(function ($row) {
-                // SQLite stores booleans as 0/1 integers — cast to real bool for JSON
-                $row->is_active = (bool) $row->is_active;
-                $row->registration_count = (int) $row->registration_count;
-                return $row;
-            });
+            ->map(fn ($row) => $this->mapWifiClientRow($row));
 
         return response()->json([
             'success'   => true,
@@ -110,5 +118,43 @@ class WifiClientsController extends BaseApiController
             'page'      => $page,
             'per_page'  => $pageSize,
         ]);
+    }
+
+    private function baseQuery(Request $request)
+    {
+        $query = DB::table('wifi_clients as wc')
+            ->select([
+                'wc.id', 'wc.phone', 'wc.mac_address', 'wc.ip_address',
+                'wc.is_active', 'wc.session_minutes', 'wc.session_started_at',
+                'wc.created_at', 'wc.updated_at',
+                DB::raw('(SELECT COUNT(*) FROM wifi_clients WHERE phone = wc.phone) as registration_count'),
+            ]);
+
+        $from = $request->query('from');
+        if (is_string($from) && trim($from) !== '') {
+            $fromTs = strtotime($from);
+            if ($fromTs !== false) {
+                $query->where('wc.created_at', '>=', gmdate('Y-m-d H:i:s', $fromTs));
+            }
+        }
+
+        $to = $request->query('to');
+        if (is_string($to) && trim($to) !== '') {
+            $toTs = strtotime($to);
+            if ($toTs !== false) {
+                $query->where('wc.created_at', '<=', gmdate('Y-m-d H:i:s', $toTs));
+            }
+        }
+
+        return $query;
+    }
+
+    private function mapWifiClientRow(object $row): object
+    {
+        // SQLite stores booleans as 0/1 integers — cast to real bool for JSON
+        $row->is_active = (bool) $row->is_active;
+        $row->registration_count = (int) $row->registration_count;
+
+        return $row;
     }
 }

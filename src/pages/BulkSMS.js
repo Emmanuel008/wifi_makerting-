@@ -1,14 +1,15 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 import { swalBase } from '../swalTheme';
-import client from '../api/client';
+import { sendSmsJson, sendSmsWithFile } from '../api/sendSms';
 
 function normalizeContacts(raw) {
   return raw
     .split(/[\n,;]+/)
     .map((x) => x.trim().replace(/\s+/g, ''))
     .filter(Boolean)
+    .filter((x) => /\d/.test(x))
     .join(',');
 }
 
@@ -20,13 +21,27 @@ function parseContactsFromSheetText(text) {
     .filter((x) => /\d/.test(x));
 }
 
+function countContacts(raw) {
+  const normalized = normalizeContacts(raw);
+  return normalized ? normalized.split(',').length : 0;
+}
+
 export default function BulkSMS() {
   const [senderId, setSenderId] = useState('NILETEE');
   const [message, setMessage] = useState(
     'Hi! Show this message at checkout for 10% off today only.'
   );
   const [contacts, setContacts] = useState('');
+  const [contactsFile, setContactsFile] = useState(null);
+  const [contactsFileName, setContactsFileName] = useState('');
+  const [fileContactCount, setFileContactCount] = useState(0);
   const [loading, setLoading] = useState(false);
+
+  const manualContactCount = useMemo(() => countContacts(contacts), [contacts]);
+  const smsParts = useMemo(
+    () => Math.max(1, Math.ceil(message.trim().length / 160)),
+    [message]
+  );
 
   const onSheetUpload = useCallback(async (e) => {
     const file = e.target.files && e.target.files[0];
@@ -37,7 +52,7 @@ export default function BulkSMS() {
         ...swalBase,
         icon: 'warning',
         title: 'Unsupported file',
-        text: 'Please upload a CSV or TXT file with phone numbers.',
+        text: 'Please upload a CSV or TXT file with phone numbers in column A.',
       });
       e.target.value = '';
       return;
@@ -56,21 +71,25 @@ export default function BulkSMS() {
         return;
       }
 
-      setContacts((prev) => {
-        const merged = [...parseContactsFromSheetText(prev), ...parsed];
-        const unique = Array.from(new Set(merged));
-        return unique.join(',');
-      });
+      setContactsFile(file);
+      setContactsFileName(file.name);
+      setFileContactCount(parsed.length);
 
       await Swal.fire({
         ...swalBase,
         icon: 'success',
-        title: 'Sheet imported',
-        text: `${parsed.length} number(s) imported from file.`,
+        title: 'Sheet attached',
+        text: `${parsed.length} number(s) found in file and ready for multipart upload.`,
       });
     } finally {
       e.target.value = '';
     }
+  }, []);
+
+  const clearContactsFile = useCallback(() => {
+    setContactsFile(null);
+    setContactsFileName('');
+    setFileContactCount(0);
   }, []);
 
   const saveDraft = useCallback(() => {
@@ -84,12 +103,25 @@ export default function BulkSMS() {
 
   const sendSms = useCallback(async () => {
     const normalized = normalizeContacts(contacts);
-    if (!senderId.trim() || !message.trim() || !normalized) {
+    const trimmedSenderId = senderId.trim();
+    const trimmedMessage = message.trim();
+
+    if (!trimmedSenderId || !trimmedMessage) {
       await Swal.fire({
         ...swalBase,
         icon: 'warning',
         title: 'Missing information',
-        text: 'Sender ID, message, and at least one phone number are required.',
+        text: 'Sender ID and message are required.',
+      });
+      return;
+    }
+
+    if (!contactsFile && !normalized) {
+      await Swal.fire({
+        ...swalBase,
+        icon: 'warning',
+        title: 'Missing phone numbers',
+        text: 'Add phone numbers manually or upload a CSV/TXT sheet.',
       });
       return;
     }
@@ -106,24 +138,39 @@ export default function BulkSMS() {
     });
 
     try {
-      const payload = {
-        senderId: senderId.trim(),
-        message: message.trim(),
-        contacts: normalized,
-      };
+      let data;
 
-      const { data } = await client.post('/api/send-sms', payload);
+      if (contactsFile) {
+        data = await sendSmsWithFile({
+          senderId: trimmedSenderId,
+          message: trimmedMessage,
+          contactsFile,
+          contacts: normalized || undefined,
+        });
+      } else {
+        data = await sendSmsJson({
+          senderId: trimmedSenderId,
+          message: trimmedMessage,
+          contacts: normalized,
+        });
+      }
+
       const isSuccess = Boolean(data?.success ?? data?.sucess);
       if (!isSuccess) {
         throw new Error(data?.error || data?.message || 'Failed to send SMS.');
       }
+
+      const recipientCount = data.recipients ?? (contactsFile
+        ? fileContactCount + (normalized ? manualContactCount : 0)
+        : manualContactCount);
+
       Swal.close();
 
       await Swal.fire({
         ...swalBase,
         icon: 'success',
         title: 'SMS sent successfully',
-        text: `Prepared ${payload.contacts.split(',').length} recipient(s) for sending.`,
+        text: `Sent to ${recipientCount} recipient(s).`,
       });
     } catch (error) {
       Swal.close();
@@ -132,6 +179,7 @@ export default function BulkSMS() {
         error?.response?.data?.message ||
         error?.message ||
         'An unexpected error occurred while sending SMS.';
+
       await Swal.fire({
         ...swalBase,
         icon: 'error',
@@ -141,14 +189,16 @@ export default function BulkSMS() {
     } finally {
       setLoading(false);
     }
-  }, [contacts, message, senderId]);
+  }, [contacts, contactsFile, fileContactCount, manualContactCount, message, senderId]);
 
   return (
     <div className="card pageCard">
       <div className="cardHeader">
         <div>
           <div className="cardTitle">Bulk SMS</div>
-          <div className="cardSub">Compose and send messages</div>
+          <div className="cardSub">
+            Typed numbers send as JSON. An attached sheet sends as multipart/form-data.
+          </div>
         </div>
       </div>
       <div className="pageBody">
@@ -159,20 +209,24 @@ export default function BulkSMS() {
               className="fieldInput"
               value={senderId}
               onChange={(e) => setSenderId(e.target.value)}
+              disabled={loading}
             />
-            <div className="fieldHint">This name appears as the message sender.</div>
+            <div className="fieldHint">This name appears as the message sender (e.g. NILETEE).</div>
           </div>
           <div className="field fieldWide">
             <div className="fieldLabel">Phone numbers</div>
             <textarea
               className="fieldInput fieldTextarea"
               style={{ minHeight: 88 }}
-              placeholder="2557XXXXXXXX, 2557YYYYYYYY (comma, semicolon, or one per line)"
+              placeholder="0625313162, 0656121885 (comma, semicolon, or one per line)"
               value={contacts}
               onChange={(e) => setContacts(e.target.value)}
+              disabled={loading}
             />
             <div className="fieldHint">
-              Add manually or upload a CSV/TXT sheet. Numbers are merged and duplicates are removed.
+              {manualContactCount > 0
+                ? `${manualContactCount} number(s) ready.`
+                : 'Add numbers manually or upload a CSV/TXT sheet.'}
             </div>
           </div>
           <div className="field fieldWide">
@@ -184,7 +238,21 @@ export default function BulkSMS() {
               onChange={onSheetUpload}
               disabled={loading}
             />
-            <div className="fieldHint">Supported formats: `.csv` and `.txt`.</div>
+            {contactsFileName ? (
+              <div className="fieldRow" style={{ marginTop: 8 }}>
+                <div className="fieldHint">
+                  Attached for multipart send: <strong>{contactsFileName}</strong>
+                  {fileContactCount > 0 ? ` (${fileContactCount} number(s) in column A)` : ''}
+                </div>
+                <button className="linkBtn" type="button" onClick={clearContactsFile} disabled={loading}>
+                  Remove file
+                </button>
+              </div>
+            ) : (
+              <div className="fieldHint">
+                Supported formats: `.csv` and `.txt`. Numbers in column A are sent via multipart upload.
+              </div>
+            )}
           </div>
           <div className="field fieldWide">
             <div className="fieldLabel">Message</div>
@@ -192,12 +260,16 @@ export default function BulkSMS() {
               className="fieldInput fieldTextarea"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
+              disabled={loading}
             />
+            <div className="fieldHint">
+              {message.trim().length} characters · estimated {smsParts} SMS part(s)
+            </div>
           </div>
         </div>
 
         <div className="actions">
-          <button className="btnSecondary" type="button" onClick={saveDraft}>
+          <button className="btnSecondary" type="button" onClick={saveDraft} disabled={loading}>
             Save draft
           </button>
           <button

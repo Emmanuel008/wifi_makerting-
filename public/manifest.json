@@ -1,11 +1,11 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "TapKonecti",
+  "name": "TapKonecti",
   "icons": [
     {
-      "src": "icon.jpeg",
-      "type": "image/jpeg",
-      "sizes": "192x192",
+      "src": "view.png",
+      "type": "image/png",
+      "sizes": "512x512",
       "purpose": "any"
     }
   ],

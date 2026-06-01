@@ -4,7 +4,7 @@ import 'sweetalert2/dist/sweetalert2.min.css';
 import { swalBase } from '../swalTheme';
 import client from '../api/client';
 
-const LOGO_SRC = `${process.env.PUBLIC_URL}/icon.jpeg`;
+const LOGO_SRC = `${process.env.PUBLIC_URL}/view.png`;
 
 function pickRedirect(searchParams) {
   return (

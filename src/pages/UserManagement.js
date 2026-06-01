@@ -12,7 +12,7 @@ const DEFAULT_USERS = [
   {
     id: 1,
     name: 'Admin User',
-    companyName: 'WiFi Marketing',
+    companyName: 'TapKonecti',
     email: 'admin@admin.com',
     phone: '+255700000001',
     role: 'admin',
