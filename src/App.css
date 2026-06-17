@@ -564,6 +564,182 @@
   box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.14);
 }
 
+.fieldInput[type='datetime-local'] {
+  color-scheme: dark;
+}
+
+.fieldSelect {
+  cursor: pointer;
+}
+
+.receiptSection {
+  margin-top: 4px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.receiptSectionTitle {
+  font-size: 13.5px;
+  font-weight: 650;
+  margin-bottom: 12px;
+  color: rgba(248, 250, 255, 0.92);
+}
+
+.receiptDownloadBtn {
+  margin-top: 12px;
+}
+
+.savedEntryPanel {
+  display: grid;
+  gap: 16px;
+}
+
+.savedEntryBanner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  background: rgba(34, 197, 94, 0.10);
+  color: rgba(248, 250, 255, 0.92);
+  font-size: 13.5px;
+  font-weight: 650;
+}
+
+.savedEntrySummary {
+  padding: 2px 2px 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.receiptActions {
+  justify-content: space-between;
+  margin-top: 14px;
+}
+
+.stepper {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.stepperStep {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1 1 0;
+}
+
+.stepperMarker {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.62);
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  flex-shrink: 0;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.stepperStep.isActive .stepperMarker {
+  border-color: rgba(124, 92, 255, 0.55);
+  background: rgba(124, 92, 255, 0.18);
+  color: rgba(248, 250, 255, 0.96);
+  box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.12);
+}
+
+.stepperStep.isComplete .stepperMarker {
+  border-color: rgba(34, 197, 94, 0.45);
+  background: rgba(34, 197, 94, 0.14);
+  color: rgba(34, 197, 94, 0.95);
+}
+
+.stepperCopy {
+  min-width: 0;
+}
+
+.stepperLabel {
+  font-size: 13.5px;
+  font-weight: 650;
+  color: rgba(248, 250, 255, 0.92);
+}
+
+.stepperHint {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.stepperLine {
+  width: 36px;
+  height: 2px;
+  margin: 19px 10px 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.10);
+  flex-shrink: 0;
+}
+
+.stepperLine.isComplete {
+  background: rgba(34, 197, 94, 0.55);
+}
+
+.stepperForm {
+  display: grid;
+  gap: 12px;
+}
+
+.stepperMeta {
+  font-size: 12.5px;
+}
+
+.stepperActions {
+  justify-content: space-between;
+}
+
+.statusChoices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.statusChoice {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(248, 250, 255, 0.88);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  user-select: none;
+  transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.statusChoice input {
+  accent-color: var(--accent);
+}
+
+.statusChoice.isSelected {
+  border-color: rgba(124, 92, 255, 0.45);
+  background: rgba(124, 92, 255, 0.14);
+  box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.10);
+}
+
 .fieldTextarea {
   min-height: 120px;
   resize: vertical;
@@ -1009,6 +1185,15 @@
     min-height: 320px;
     border-right: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+  }
+
+  .stepper {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .stepperLine {
+    display: none;
   }
 }
 
@@ -1598,6 +1783,15 @@ a.captiveContinue {
     min-height: 320px;
     border-right: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+  }
+
+  .stepper {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .stepperLine {
+    display: none;
   }
 }
 
