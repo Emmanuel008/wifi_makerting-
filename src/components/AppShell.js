@@ -9,6 +9,7 @@ import BulkSMS from '../pages/BulkSMS';
 import Portal from '../pages/Portal';
 import UserManagement from '../pages/UserManagement';
 import WifiPassword from '../pages/WifiPassword';
+import SafeCube from '../pages/SafeCube';
 import { swalBase } from '../swalTheme';
 import BrandMark from './BrandMark';
 import { useAuth } from './Auth';
@@ -19,6 +20,7 @@ const NAV_ITEMS = [
   { key: 'BulkSMS', label: 'Bulk SMS', to: '/bulksms' },
   { key: 'UserManagement', label: 'User Management', to: '/usermanagement' },
   { key: 'WifiPassword', label: 'WiFi Password', to: '/wifipassword' },
+  { key: 'SafeCube', label: 'Safe Cube', to: '/safecube' },
 ];
 
 function usePageTitle() {
@@ -34,6 +36,8 @@ function usePageTitle() {
       return 'User Management';
     case '/wifipassword':
       return 'WiFi Password';
+    case '/safecube':
+      return 'Safe Cube';
     case '/portal':
       return 'Portal';
     default:
@@ -220,6 +224,7 @@ export default function AppShell() {
             <Route path="/bulksms" element={<BulkSMS />} />
             <Route path="/usermanagement" element={<UserManagement />} />
             <Route path="/wifipassword" element={<WifiPassword />} />
+            <Route path="/safecube" element={<SafeCube />} />
             <Route
               path="/portal"
               element={
