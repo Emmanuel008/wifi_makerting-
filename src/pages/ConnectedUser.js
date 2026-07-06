@@ -70,6 +70,8 @@ export default function ConnectedUser() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState(null);
   const [error, setError] = useState(null);
   const [now, setNow] = useState(Date.now());
   const [fromDate, setFromDate] = useState('');
@@ -249,6 +251,24 @@ export default function ConnectedUser() {
     setPage(1);
   }, []);
 
+  const handleSync = useCallback(async () => {
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const { data } = await client.post('/api/wifi-clients/sync-mikrotik');
+      setSyncResult(data);
+      if (data.deactivated_count > 0) {
+        // Refresh list so UI reflects the newly inactive records
+        load();
+      }
+    } catch (err) {
+      const msg = err?.response?.data?.error || err?.message || 'Sync failed.';
+      setSyncResult({ success: false, mikrotik_error: msg });
+    } finally {
+      setSyncing(false);
+    }
+  }, [load]);
+
   const handleExport = useCallback(async () => {
     if (isInvalidDateRange(fromDate, toDate)) {
       Swal.fire({
@@ -324,6 +344,15 @@ export default function ConnectedUser() {
             Refresh
           </button>
           <button
+            className="btnSecondary"
+            type="button"
+            disabled={syncing || loading}
+            onClick={handleSync}
+            title="Compare DB with MikroTik active sessions and deactivate stale records"
+          >
+            {syncing ? 'Syncing…' : 'Sync MikroTik'}
+          </button>
+          <button
             className="btnPrimary"
             type="button"
             disabled={exporting || loading}
@@ -337,6 +366,27 @@ export default function ConnectedUser() {
         </div>
       </div>
       <div className="pageBody">
+        {syncResult && (
+          <div className={`syncBanner ${syncResult.mikrotik_error ? 'syncBannerError' : 'syncBannerOk'}`}>
+            {syncResult.mikrotik_error ? (
+              <span>MikroTik unreachable: {syncResult.mikrotik_error}</span>
+            ) : (
+              <span>
+                MikroTik active: <strong>{syncResult.mikrotik_active_count}</strong>
+                {' · '}Deactivated in DB: <strong>{syncResult.deactivated_count}</strong>
+                {syncResult.deactivated_count === 0 ? ' · DB is in sync' : ''}
+              </span>
+            )}
+            <button
+              type="button"
+              className="linkBtn"
+              style={{ marginLeft: 12 }}
+              onClick={() => setSyncResult(null)}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
         <div className="filterToolbar" aria-label="Date filters">
           <div className="filterField">
             <label className="fieldLabel" htmlFor="connected-from">From</label>

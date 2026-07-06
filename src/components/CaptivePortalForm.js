@@ -40,6 +40,7 @@ export default function CaptivePortalForm({ searchParams, embedded, onBack }) {
   const [wifiPassword, setWifiPassword] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const [destination, setDestination] = React.useState('');
+  const [hotspotUsername, setHotspotUsername] = React.useState('guest');
   const [hotspotPassword, setHotspotPassword] = React.useState('');
 
   // Redirect to MikroTik login via window.location (navigation is allowed HTTPS→HTTP,
@@ -48,7 +49,7 @@ export default function CaptivePortalForm({ searchParams, embedded, onBack }) {
     if (step === 'done' && linkLogin && hotspotPassword !== null) {
       try {
         const url = new URL(linkLogin);
-        url.searchParams.set('username', 'guest');
+        url.searchParams.set('username', hotspotUsername);
         url.searchParams.set('password', hotspotPassword);
         if (destination) url.searchParams.set('dst', destination);
         window.location.href = url.toString();
@@ -56,7 +57,7 @@ export default function CaptivePortalForm({ searchParams, embedded, onBack }) {
         // linkLogin was not a valid URL — fall through to manual button
       }
     }
-  }, [step, linkLogin, hotspotPassword, destination]);
+  }, [step, linkLogin, hotspotUsername, hotspotPassword, destination]);
 
   const submit = React.useCallback(async () => {
     const trimmed = phone.trim();
@@ -82,6 +83,7 @@ export default function CaptivePortalForm({ searchParams, embedded, onBack }) {
         throw new Error(data?.error || data?.message || 'Authentication failed.');
       }
       setDestination(dst || 'https://example.com');
+      setHotspotUsername(data.hotspot_username || 'guest');
       setHotspotPassword(data.hotspot_password || '');
       setStep('done');
     } catch (error) {

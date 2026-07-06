@@ -1,4 +1,4 @@
-# Login
+# Login (admin)
 POST http://127.0.0.1:8000/api/login
 Content-Type: application/json
 
@@ -6,6 +6,38 @@ Content-Type: application/json
     "email": "admin@admin.com",
     "password": "admin"
 }
+
+###
+# List clients (admin only) — replace <ADMIN_API_TOKEN> with value from ADMIN_API_TOKEN env
+GET http://127.0.0.1:8000/api/clients
+Authorization: Bearer <ADMIN_API_TOKEN>
+
+###
+# Register a new client (admin only)
+POST http://127.0.0.1:8000/api/clients
+Content-Type: application/json
+Authorization: Bearer <ADMIN_API_TOKEN>
+
+{
+    "name": "Client A",
+    "email": "clienta@example.com",
+    "password": "secret1234"
+}
+
+###
+# Update client (toggle active, reset password)
+PATCH http://127.0.0.1:8000/api/clients/1
+Content-Type: application/json
+Authorization: Bearer <ADMIN_API_TOKEN>
+
+{
+    "is_active": false
+}
+
+###
+# Delete a client (admin only)
+DELETE http://127.0.0.1:8000/api/clients/1
+Authorization: Bearer <ADMIN_API_TOKEN>
 
 ###
 # Store WiFi password

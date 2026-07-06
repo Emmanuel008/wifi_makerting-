@@ -14,24 +14,35 @@ class WifiClientsController extends BaseApiController
      */
     public function update(int $id, Request $request)
     {
-        $wifiClient = DB::table('wifi_clients')->where('id', $id)->first();
+        $auth = $this->resolveAuth($request);
+        if (!$auth) return $this->unauthorizedResponse();
+
+        $query = DB::table('wifi_clients')->where('id', $id);
+        if ($auth->role === 'client') {
+            $query->where('tenant_id', $auth->tenantId);
+        }
+        $wifiClient = $query->first();
 
         if (!$wifiClient) {
             return response()->json(['success' => false, 'error' => 'Client not found.'], 404);
         }
 
         $body    = $this->decodeJsonBody($request);
-        $updates = [];
+        $updates = ['updated_at' => now()];
+        $kickResult = null;
 
         if (array_key_exists('is_active', $body)) {
             $isActive             = (bool) $body['is_active'];
             $updates['is_active'] = $isActive ? 1 : 0;
 
-            // Kick MikroTik session when deactivating
-            $kickResult = null;
             if (!$isActive && !empty($wifiClient->mac_address)) {
                 try {
-                    $kickResult = (new MikroTikService())->kickHotspotSession($wifiClient->mac_address);
+                    $mikrotik   = new MikroTikService();
+                    $kickResult = $mikrotik->kickHotspotSession($wifiClient->mac_address);
+                    // Also remove the per-user hotspot account so they must re-auth
+                    if (!empty($wifiClient->phone)) {
+                        $mikrotik->removeHotspotUser($wifiClient->phone);
+                    }
                 } catch (\Throwable $e) {
                     $kickResult = ['kicked' => 0, 'error' => $e->getMessage(), 'host' => '?'];
                 }
@@ -43,7 +54,7 @@ class WifiClientsController extends BaseApiController
             $updates['session_minutes'] = $minutes;
         }
 
-        if (empty($updates)) {
+        if (count($updates) === 1) { // only updated_at
             return response()->json(['success' => false, 'error' => 'Nothing to update.'], 422);
         }
 
@@ -51,22 +62,32 @@ class WifiClientsController extends BaseApiController
 
         return response()->json([
             'success' => true,
-            'kick'    => $kickResult,  // null if not a deactivation, array with debug info if it was
+            'kick'    => $kickResult,
         ]);
     }
 
-    public function destroy(int $id)
+    public function destroy(int $id, Request $request)
     {
-        $client = DB::table('wifi_clients')->where('id', $id)->first();
+        $auth = $this->resolveAuth($request);
+        if (!$auth) return $this->unauthorizedResponse();
+
+        $query = DB::table('wifi_clients')->where('id', $id);
+        if ($auth->role === 'client') {
+            $query->where('tenant_id', $auth->tenantId);
+        }
+        $client = $query->first();
 
         if (!$client) {
             return response()->json(['success' => false, 'error' => 'Client not found.'], 404);
         }
 
-        // Kick active MikroTik session BEFORE deleting from DB so the MAC is still available.
         if (!empty($client->mac_address)) {
             try {
-                (new MikroTikService())->kickHotspotSession($client->mac_address);
+                $mikrotik = new MikroTikService();
+                $mikrotik->kickHotspotSession($client->mac_address);
+                if (!empty($client->phone)) {
+                    $mikrotik->removeHotspotUser($client->phone);
+                }
             } catch (\Throwable) {
                 // Router unreachable — still delete the DB record.
             }
@@ -77,58 +98,28 @@ class WifiClientsController extends BaseApiController
         return response()->json(['success' => true]);
     }
 
-    /**
-     * GET /api/wifi-clients
-     * Optional query params: page, from, to, export=1
-     */
     public function index(Request $request)
     {
-        $export = in_array($request->query('export'), ['1', 'true', 'yes'], true);
-        $query  = $this->baseQuery($request);
+        $auth = $this->resolveAuth($request);
+        if (!$auth) return $this->unauthorizedResponse();
 
-        if ($export) {
-            $rows = $query
-                ->orderByDesc('wc.updated_at')
-                ->get()
-                ->map(fn ($row) => $this->mapWifiClientRow($row));
-
-            return response()->json([
-                'success' => true,
-                'data'    => $rows,
-                'total'   => $rows->count(),
-            ]);
-        }
-
+        $export   = in_array($request->query('export'), ['1', 'true', 'yes'], true);
         $page     = max(1, (int) ($request->query('page', 1)));
         $pageSize = 20;
         $offset   = ($page - 1) * $pageSize;
-        $total    = (clone $query)->count();
 
-        $rows = $query
-            ->orderByDesc('wc.updated_at')
-            ->limit($pageSize)
-            ->offset($offset)
-            ->get()
-            ->map(fn ($row) => $this->mapWifiClientRow($row));
-
-        return response()->json([
-            'success'   => true,
-            'data'      => $rows,
-            'total'     => $total,
-            'page'      => $page,
-            'per_page'  => $pageSize,
-        ]);
-    }
-
-    private function baseQuery(Request $request)
-    {
         $query = DB::table('wifi_clients as wc')
             ->select([
                 'wc.id', 'wc.phone', 'wc.mac_address', 'wc.ip_address',
                 'wc.is_active', 'wc.session_minutes', 'wc.session_started_at',
-                'wc.created_at', 'wc.updated_at',
+                'wc.created_at', 'wc.updated_at', 'wc.tenant_id',
                 DB::raw('(SELECT COUNT(*) FROM wifi_clients WHERE phone = wc.phone) as registration_count'),
             ]);
+
+        // Clients only see their own users
+        if ($auth->role === 'client') {
+            $query->where('wc.tenant_id', $auth->tenantId);
+        }
 
         $from = $request->query('from');
         if (is_string($from) && trim($from) !== '') {
@@ -146,15 +137,89 @@ class WifiClientsController extends BaseApiController
             }
         }
 
-        return $query;
+        $mapper = fn ($row) => $this->mapRow($row);
+
+        if ($export) {
+            $rows = $query->orderByDesc('wc.updated_at')->get()->map($mapper);
+            return response()->json(['success' => true, 'data' => $rows, 'total' => $rows->count()]);
+        }
+
+        $total = (clone $query)->count();
+
+        $rows = $query
+            ->orderByDesc('wc.updated_at')
+            ->limit($pageSize)
+            ->offset($offset)
+            ->get()
+            ->map($mapper);
+
+        return response()->json([
+            'success'  => true,
+            'data'     => $rows,
+            'total'    => $total,
+            'page'     => $page,
+            'per_page' => $pageSize,
+        ]);
     }
 
-    private function mapWifiClientRow(object $row): object
+    /**
+     * POST /api/wifi-clients/sync-mikrotik  (admin only)
+     *
+     * Fetches live sessions from MikroTik. Any DB client marked active
+     * whose MAC address is NOT in MikroTik's active list gets deactivated.
+     */
+    public function syncWithMikrotik(Request $request)
     {
-        // SQLite stores booleans as 0/1 integers — cast to real bool for JSON
-        $row->is_active = (bool) $row->is_active;
-        $row->registration_count = (int) $row->registration_count;
+        $auth = $this->resolveAuth($request);
+        if (!$auth) return $this->unauthorizedResponse();
+        if ($auth->role !== 'admin') return $this->forbiddenResponse();
 
+        $mtResult = (new MikroTikService())->getActiveSessions();
+
+        $activeMacs = [];
+        foreach (($mtResult['sessions'] ?? []) as $session) {
+            $mac = strtoupper(trim($session['mac-address'] ?? ''));
+            if ($mac !== '') {
+                $activeMacs[] = $mac;
+            }
+        }
+
+        // Find DB records marked active but whose MAC isn't in MikroTik
+        $dbActive = DB::table('wifi_clients')
+            ->where('is_active', 1)
+            ->whereNotNull('mac_address')
+            ->select(['id', 'phone', 'mac_address'])
+            ->get();
+
+        $deactivated = [];
+        foreach ($dbActive as $client) {
+            $mac = strtoupper(trim($client->mac_address ?? ''));
+            if ($mac !== '' && !in_array($mac, $activeMacs, true)) {
+                DB::table('wifi_clients')
+                    ->where('id', $client->id)
+                    ->update(['is_active' => 0, 'updated_at' => now()]);
+                $deactivated[] = [
+                    'id'    => $client->id,
+                    'phone' => $client->phone,
+                    'mac'   => $client->mac_address,
+                ];
+            }
+        }
+
+        return response()->json([
+            'success'               => true,
+            'mikrotik_error'        => $mtResult['error'],
+            'mikrotik_active_count' => count($activeMacs),
+            'mikrotik_sessions'     => $mtResult['sessions'] ?? [],
+            'deactivated_count'     => count($deactivated),
+            'deactivated'           => $deactivated,
+        ]);
+    }
+
+    private function mapRow(object $row): object
+    {
+        $row->is_active          = (bool) $row->is_active;
+        $row->registration_count = (int) $row->registration_count;
         return $row;
     }
 }

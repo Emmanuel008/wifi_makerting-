@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Services\MikroTikService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Throwable;
 
 class WifiClientAuthController extends BaseApiController
@@ -36,36 +38,48 @@ class WifiClientAuthController extends BaseApiController
         $mac = trim((string) ($request->mac ?? ''));
         $ip  = trim((string) ($request->ip ?? ''));
 
-        try {
-            // Re-activate the client if they exist (inactive = forced re-auth, now re-allow)
-            $exists = DB::table('wifi_clients')->where('phone', $phone)->exists();
+        // Determine session minutes (existing client keeps their setting, new clients default to 480)
+        $existingClient = DB::table('wifi_clients')->where('phone', $phone)->first();
+        $sessionMinutes = $existingClient->session_minutes ?? 480;
+        if (!$sessionMinutes || $sessionMinutes < 1) {
+            $sessionMinutes = 480;
+        }
 
+        try {
             DB::table('wifi_clients')->updateOrInsert(
                 ['phone' => $phone],
                 [
                     'mac_address'        => $mac ?: null,
                     'ip_address'         => $ip ?: null,
                     'is_active'          => true,
+                    'session_minutes'    => $sessionMinutes,
                     'session_started_at' => now(),
                     'updated_at'         => now(),
                 ]
             );
-
-            // If this is a brand new client, set the default session_minutes
-            if (!$exists) {
-                DB::table('wifi_clients')
-                    ->where('phone', $phone)
-                    ->whereNull('session_minutes')
-                    ->update(['session_minutes' => 480]);
-            }
         } catch (Throwable) {
             return response()->json(['success' => false, 'error' => 'Could not save WiFi client.'], 500);
         }
 
+        // Generate a fresh one-time password for this user's MikroTik hotspot account.
+        // We use the phone number as the MikroTik username so each user has their own
+        // tracked session (instead of sharing a single "guest" account).
+        $hotspotPassword = Str::random(16);
+
+        try {
+            (new MikroTikService())->createOrUpdateHotspotUser($phone, $hotspotPassword, $sessionMinutes);
+        } catch (Throwable) {
+            // MikroTik unreachable — still allow the client in;
+            // they will need to use the fallback legacy guest password.
+            $hotspotPassword = env('MIKROTIK_HOTSPOT_PASSWORD', '');
+            $phone           = 'guest'; // signal to frontend to use legacy mode
+        }
+
         return response()->json([
             'success'          => true,
-            'phone'            => $phone,
-            'hotspot_password' => env('MIKROTIK_HOTSPOT_PASSWORD', ''),
+            'phone'            => $this->normalizePhone((string) ($request->phone ?? '')),
+            'hotspot_username' => $phone,
+            'hotspot_password' => $hotspotPassword,
         ], 200, [], JSON_UNESCAPED_SLASHES);
     }
 
